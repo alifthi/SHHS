@@ -33,21 +33,29 @@ class utils:
         import glob
         for i in glob.glob(self.signalDir+'*'):
             id = i.split('-')[1].split('.')[0]
+            if id in self.validNormalSignalsName['id']:
+                index = self.validNormalSignalsName.loc[self.validNormalSignalsName['id']==id].index[0]
+                if (len(self.validNormalSignals['Signals'][index]) >= len(self.signalQualId-1)):
+                    pass
+            elif id in self.validPatientSignalsName['id']:
+                index = self.validPatientSignalsName.loc[self.validPatientSignalsName['id']==id].index[0]
+                if (len(self.validPatientSignalsName['Signals'][index]) >= (len(self.signalQualId)-1)):
+                    pass
     def preprocessing(self):
         pass
     def readCsv(self):                                          # read needed CSV files
         patient = pd.read_excel(self.idPath,sheet_name='Patient')
         absolutelyNormal = pd.read_excel(self.idPath,sheet_name='Absolutely Normal')
-        signalQualId = ['nsrrid'] +list(pd.read_excel(self.signalQualIdPath)['id'])
+        self.signalQualId = ['nsrrid'] +list(pd.read_excel(self.signalQualIdPath)['id'])
         signalQualValue = pd.read_csv(self.signalQualValuePath)
         signalQualColumns = signalQualValue.columns
         signalQualColumns = [i.lower() for i in signalQualColumns]
         signalQualValue.columns = signalQualColumns
-        signalQualValue = signalQualValue[signalQualId]
+        signalQualValue = signalQualValue[self.signalQualId]
         lenPatient = min(len(patient),len(absolutelyNormal))
         lenNormal = lenPatient + 200
-        self.validNormalSignals = self.isSignalValid(len = lenNormal,list = absolutelyNormal,qualList=signalQualValue,theresh=2,signalQualId=signalQualId)
-        self.validPatientSignals = self.isSignalValid(len = lenPatient,list = patient,qualList=signalQualValue,theresh=2,signalQualId=signalQualId)
+        self.validNormalSignalsName = self.isSignalValid(len = lenNormal,list = absolutelyNormal,qualList=signalQualValue,theresh=2,signalQualId=signalQualId)
+        self.validPatientSignalsName = self.isSignalValid(len = lenPatient,list = patient,qualList=signalQualValue,theresh=2,signalQualId=signalQualId)
     @staticmethod
     def isSignalValid(len,list,qualList,theresh,signalQualId):      # check that witch signals is valid to use in a EDF file
         goodSignals = pd.DataFrame(columns=['id','Signals'])    
