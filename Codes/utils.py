@@ -9,16 +9,15 @@ lastEdit: 10/aban/01
 import pyedflib as edf
 import pandas as pd
 class utils:
-    def __init__(self,signalDir,idPath,signalQualIdPath,signalQualValuePath):
+    def __init__(self,signalDir,idPath,signalQualIdPath,signalQualValuePath,path2save):
         self.signalQualIdPath = signalQualIdPath                # saves the path of signal quality id file
         self.signalQualValuePath = signalQualValuePath          # saves the path of signal quality value file
         self.signalDir = signalDir                              # path of signals
         self.idPath = idPath
         self.series = None
-        pass
-    @staticmethod
-    def readAsDF(dir):                                          # it reads signals as a CSV file
-        file = edf.EdfReader(dir)
+        self.path2save = path2save
+    def readAsDF(self,signalPath,save = True):                                          # it reads signals as a CSV file
+        file = edf.EdfReader(signalPath)
         headers = file.getSignalHeaders()
         table = pd.DataFrame()
         for i in range(len(headers)):
@@ -27,7 +26,13 @@ class utils:
             rate = int(headers[i]['sample_rate'])
             chunks = [signal[x:x+rate] for x in range(0, len(signal), rate)]
             table[name] = chunks
+        if save:
+            self.saveAsCSV()
         return table
+    def globForOnEdfs(self):
+        import glob
+        for i in glob.glob(self.signalDir+'*'):
+            id = i.split('-')[1].split('.')[0]
     def preprocessing(self):
         pass
     def readCsv(self):                                          # read needed CSV files
@@ -45,21 +50,22 @@ class utils:
         self.validPatientSignals = self.isSignalValid(len = lenPatient,list = patient,qualList=signalQualValue,theresh=2,signalQualId=signalQualId)
     @staticmethod
     def isSignalValid(len,list,qualList,theresh,signalQualId):      # check that witch signals is valid to use in a EDF file
-        goodSignals = []    
+        goodSignals = pd.DataFrame(columns=['id','Signals'])    
         for i in range(len):
             id = list['nsrrid'][i]
             # qualValue = qualList['nsrrid'][id]
             qualValue = qualList.loc[qualList['nsrrid'] == id].reset_index()
             tmpId = []
-            for i in signalQualId:
-                if int(qualValue[i][0])>theresh:
-                    tmpId.append(i)
-            goodSignals.append(tmpId)
+            for v  in signalQualId:
+                if int(qualValue[v][0])>theresh:
+                    tmpId.append(v)
+            goodSignals.loc[i] = [id,tmpId]
         return goodSignals
     def saveAsCSV(self):
-        self.series.to_csv('/run/media/alifathi/3e705399-86be-41f0-bf88-34db80a00350/CSVSeries/')    # saving every signal as csv file 
+        self.series.to_csv(self.path2save)    # saving every signal as csv file 
 idPath = '/home/alifathi/Documents/Projects/SHHS/Data/SHHS1.xlsx'
 signalQualIdPath = '/home/alifathi/Documents/Projects/SHHS/Data/signal quality.xlsx'
 signalQualValuePath = '/home/alifathi/Documents/Projects/SHHS/Data/datasets/1- shhs1-dataset-0.13.0.csv'
-util = utils(signalDir=None,signalQualIdPath=signalQualIdPath,signalQualValuePath=signalQualValuePath,idPath=idPath)
+path2save = '/run/media/alifathi/3e705399-86be-41f0-bf88-34db80a00350/CSVSeries/'
+util = utils(signalDir=None,signalQualIdPath=signalQualIdPath,signalQualValuePath=signalQualValuePath,idPath=idPath,path2save=path2save)
 util.readCsv()
