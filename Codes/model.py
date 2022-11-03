@@ -1,3 +1,11 @@
+'''
+author: alifthi
+
+Email: alifathi8008@gmail.com
+
+lastEdit: 2022/NOV/3
+'''
+
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
@@ -6,10 +14,10 @@ import numpy as np
 
 class model:
     def __init__(self,Len):
-        self.inputNames = ['sao2','hr','eeg','eegsec','ecg','emg',
-                            'eogl','eogr','thorres','abdores','newair',
-                            'light','position']
-        self.freq = {'sao2': 1, 'hr': 1, 'eogl': 50, 'eogr': 50, 'eeg': 125, 'thorres': 10, 'abdores': 10, 'position': 1, 'light': 1, 'newair': 10}
+        self.inputNames = ['sao2','hr','eeg','eegsec','ecg','emg','eogl',
+                        'eogr','thorres','abdores','newair','light','position']
+        self.freq = {'sao2': 1, 'hr': 1, 'eogl': 50 ,'eogr': 50, 'eeg': 125,'eegsec': 125,'ecg': 125,
+                    'emg': 125, 'thorres': 10, 'abdores': 10, 'position': 1, 'light': 1, 'newair': 10}
         self.len = Len
         self.net = self.buildModel()
     def buildModel(self,transfer = False):
@@ -88,4 +96,3 @@ class model:
         pass
 len = 1
 net = model(Len = 1)
-print(net.net)
