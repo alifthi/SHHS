@@ -5,9 +5,11 @@ from tensorflow.keras import layers as ksl
 import numpy as np
 
 class model:
-    def __init__(self,freq,Len):
-        self.inputNames = ['abdo', 'air', 'chin', 'chst', 'eeg1', 'eeg2', 'eogl', 'eogr', 'hr']
-        self.freq = freq
+    def __init__(self,Len):
+        self.inputNames = ['sao2','hr','eeg','eegsec','ecg','emg',
+                            'eogl','eogr','thorres','abdores','newair',
+                            'light','position']
+        self.freq = {'sao2': 1, 'hr': 1, 'eogl': 50, 'eogr': 50, 'eeg': 125, 'thorres': 10, 'abdores': 10, 'position': 1, 'light': 1, 'newair': 10}
         self.len = Len
         self.net = self.buildModel()
     def buildModel(self,transfer = False):
@@ -21,8 +23,8 @@ class model:
         poolingSize2D = 2
         ReLURate = 0.1
         dropoutRate = 0.1
-        for f,name in enumerate(self.inputNames):
-            r = self.freq[f] 
+        for name in self.inputNames:
+            r = self.freq[name] 
             inputs[name+'Net'] = ksl.Input(shape = [1,self.len*r])
 
             x = ksl.Conv1D(64,kernel_size = kernelSize,strides = int(np.ceil(r/d)),padding = 'same')(inputs[name+'Net'])
@@ -84,7 +86,6 @@ class model:
         pass
     def train(self):
         pass
-freq = [1,2,3,4,5,6,7,8,9]
 len = 1
-net = model(Len = 1,freq=freq)
+net = model(Len = 1)
 print(net.net)
