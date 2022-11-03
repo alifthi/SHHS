@@ -3,8 +3,7 @@ author: alifthi
 
 Email: alifathi8008@gmail.com
 
-lastEdit: 11/aban/01
-           2022/NOV/2
+lastEdit: 2022/NOV/3
 '''
 import pyedflib as edf
 import pandas as pd
@@ -66,7 +65,6 @@ class utils:
                             continue
                         normalData.loc[normalCounter] = signal
                         normalCounter +=1   
-                        print(normalData.head())                                     
                 elif id in list(self.validPatientSignalsName['id']):
                     index = self.validPatientSignalsName.loc[self.validPatientSignalsName['id']==id].index[0]
                     if (len(self.validPatientSignalsName['Signals'][index]) >= (len(self.signalQualId)-1)):
@@ -75,7 +73,6 @@ class utils:
                             continue
                         patientData.loc[patientCounter] = signal
                         patientCounter +=1   
-                        print(patientData.head())
     def preprocessing(self):
         pass
     def readCsv(self):                                          # read needed CSV files
