@@ -17,6 +17,9 @@ class utils:
         self.targetSignals = ['sao2','hr','eeg','eegsec','ecg','emg',
                             'eogl','eogr','thorres','abdores','newair',
                             'light','position']
+        self.freq = {'sao2': 1, 'hr': 1, 'eogl': 50 ,'eogr': 50, 'eeg': 125,'eegsec': 125,'ecg': 125,
+                    'emg': 125, 'thorres': 10, 'abdores': 10, 'position': 1, 'light': 1, 'newair': 10}
+        self.len = 32010
         self.namesFilter = '.,_ ()'
     def readAsDF(self,signalPath,save = False,id=None,returnOneSignal = False):         # it reads signals as a CSV file
         file = edf.EdfReader(signalPath)                    
@@ -52,19 +55,20 @@ class utils:
         import glob
         normalData = pd.DataFrame(columns=self.targetSignals)
         patientData = pd.DataFrame(columns=self.targetSignals)
+        targets = []
         normalCounter = 0
         patientCounter = 0
         for Dir in self.signalDir:
             for path in glob.glob(Dir+'/*'):                                                   # for on every signal in Dir path
                 id = int(path.split('/')[-1].split('-')[1].split('.')[0])                      # extract id in the path
-                if id in list(self.validNormalSignalsName['id']):                           # condition will be True, if readed ID be our target
+                if id in list(self.validNormalSignalsName['id']):                           	# condition will be True, if readed ID be our target
                     index = self.validNormalSignalsName.loc[self.validNormalSignalsName['id']==id].index[0]
                     if (len(self.validNormalSignalsName['Signals'][index]) >= len(self.signalQualId)-1):        # condition will be True, if every signal be valid
                         signal = self.readAsDF(signalPath=path)
                         if signal == None:
                             continue
                         normalData.loc[normalCounter] = signal
-                        normalCounter +=1   
+                        normalCounter +=1 
                 elif id in list(self.validPatientSignalsName['id']):
                     index = self.validPatientSignalsName.loc[self.validPatientSignalsName['id']==id].index[0]
                     if (len(self.validPatientSignalsName['Signals'][index]) >= (len(self.signalQualId)-1)):
@@ -73,8 +77,12 @@ class utils:
                             continue
                         patientData.loc[patientCounter] = signal
                         patientCounter +=1   
-    def preprocessing(self):
-        pass
+        return [normalData,patientData]
+    @staticmethod
+    def preprocessing(series,targets):
+        from sklearn.model_selection import train_test_split
+        trainSeries,testSetries,trainTargets,testTarget = train_test_split(series,targets,test_size = 0)
+        return [trainSeries,testSetries,trainTargets,testTarget]
     def readCsv(self):                                          # read needed CSV files
         patient = pd.read_excel(self.idPath,sheet_name='Patient')
         absolutelyNormal = pd.read_excel(self.idPath,sheet_name='Absolutely Normal')
@@ -100,11 +108,7 @@ class utils:
                     tmpId.append(v)
             goodSignals.loc[i] = [int(id),tmpId]
         return goodSignals
-idPath = '~/Documents/Projects/SHHS/Data/SHHS1.xlsx'
-signalQualIdPath = '~/Documents/Projects/SHHS/Data/signal quality.xlsx'
-signalQualValuePath = '~/Documents/Projects/SHHS/Data/datasets/1- shhs1-dataset-0.13.0.csv'
-path2save = '~/Documents/Projects/SHHS/Data/signalsAsCSV'
-signalDir = ['/run/media/alifathi/3e705399-86be-41f0-bf88-34db80a00350/shhs1','/run/media/alifathi/009ba9d2-ab8e-4caa-8e6e-e984f5895971/datapart2/part2']
-util = utils(signalDir=signalDir,signalQualIdPath=signalQualIdPath,signalQualValuePath=signalQualValuePath,idPath=idPath,path2save=path2save)
-util.readCsv()
-util.globForOnEdfs()
+    def buildTimeseriesGenerator(self,series,targets):
+        from tensorflow.keras.preprocessing.sequence import TimeseriesGenerator
+        gen = TimeseriesGenerator(series,targets,length = self.len,sampling_rate = self.freq.values)
+        return gen

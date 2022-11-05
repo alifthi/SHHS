@@ -13,12 +13,12 @@ from tensorflow.keras import layers as ksl
 import numpy as np
 
 class model:
-    def __init__(self,Len):
+    def __init__(self):
         self.inputNames = ['sao2','hr','eeg','eegsec','ecg','emg','eogl',
                         'eogr','thorres','abdores','newair','light','position']
         self.freq = {'sao2': 1, 'hr': 1, 'eogl': 50 ,'eogr': 50, 'eeg': 125,'eegsec': 125,'ecg': 125,
                     'emg': 125, 'thorres': 10, 'abdores': 10, 'position': 1, 'light': 1, 'newair': 10}
-        self.len = Len
+        self.len = 32010
         self.net = self.buildModel()
     def buildModel(self,transfer = False):
         # define inputs of model
@@ -52,12 +52,10 @@ class model:
             x = ksl.BatchNormalization()(x)
 
             x = ksl.Resizing(height = 32,width = 1024)(x) 
-            outputs[name] = x # ksl.Reshape([None]+list(x.shape))(x)
+            outputs[name] = x 
         concatLayer = ksl.concatenate(list(outputs.values()),axis = 0)
-        # tmpModel = tf.keras.Model(inputs = list(inputs.values()),outputs = concatLayer)
+        x = ksl.Reshape((1,) + x.shape[1:])(concatLayer)
 
-        x = ksl.Reshape((1,) + x.shape[1:])(concatLayer)# ,input_shape=list(concatLayer.shape))(concatLayer)
-        # input2 = ksl.Input(list(concatLayer.shape))
         x = ksl.Conv2D(64,kernel_size = 3,strides = strides2D,padding = 'same')(x)
         x = ksl.MaxPooling2D(poolingSize2D,padding = 'same')(x)
         x = ksl.BatchNormalization()(x)
@@ -90,14 +88,11 @@ class model:
         self.net.compile(optimizer = opt,loss = Loss,metrics = ['accuracy'])
         self.net.summary()
         
-    def trainModel(self):
-        pass
+    def trainModel(self,signal=None,targets=None,epochs = 1,batchSize = 125,dataGenerator = None):   
+        self.net.train(signal,targets,epochs = epochs,batch_size = batchSize)
     def plotHist(self):
         pass
     def callBacks(self):
         pass
     def test(self):
         pass
-
-len = 1
-net = model(Len = 1)
