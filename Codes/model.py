@@ -10,6 +10,8 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
 from tensorflow.keras import layers as ksl
+from tensorflow.keras import optimizers as optim
+from tensorflow.keras import losses as loss
 import numpy as np
 
 class model:
@@ -18,6 +20,8 @@ class model:
                         'eogr','thorres','abdores','newair','light','position']
         self.freq = {'sao2': 1, 'hr': 1, 'eogl': 50 ,'eogr': 50, 'eeg': 125,'eegsec': 125,'ecg': 125,
                     'emg': 125, 'thorres': 10, 'abdores': 10, 'position': 1, 'light': 1, 'newair': 10}
+        self.inputNames = ['eeg','eegsec','ecg','emg',
+                            'eogl','eogr']
         self.len = 32010
         self.net = self.buildModel()
     def buildModel(self,transfer = False):
@@ -32,7 +36,9 @@ class model:
         ReLURate = 0.1
         dropoutRate = 0.1
         for name in self.inputNames:
+            print(name)
             r = self.freq[name] 
+
             inputs[name+'Net'] = ksl.Input(shape = [1,self.len*r])
 
             x = ksl.Conv1D(64,kernel_size = kernelSize,strides = int(np.ceil(r/d)),padding = 'same')(inputs[name+'Net'])
@@ -54,8 +60,8 @@ class model:
             x = ksl.Resizing(height = 32,width = 1024)(x) 
             outputs[name] = x 
         concatLayer = ksl.concatenate(list(outputs.values()),axis = 0)
-        x = ksl.Reshape((1,) + x.shape[1:])(concatLayer)
 
+        x = ksl.Reshape((1,) + x.shape[1:])(concatLayer)
         x = ksl.Conv2D(64,kernel_size = 3,strides = strides2D,padding = 'same')(x)
         x = ksl.MaxPooling2D(poolingSize2D,padding = 'same')(x)
         x = ksl.BatchNormalization()(x)

@@ -19,6 +19,9 @@ class utils:
                             'light','position']
         self.freq = {'sao2': 1, 'hr': 1, 'eogl': 50 ,'eogr': 50, 'eeg': 125,'eegsec': 125,'ecg': 125,
                     'emg': 125, 'thorres': 10, 'abdores': 10, 'position': 1, 'light': 1, 'newair': 10}
+        self.targetSignals = ['eeg','eegsec','ecg','emg',
+                            'eogl','eogr']
+
         self.len = 32010
         self.namesFilter = '.,_ ()'
     def readAsDF(self,signalPath,save = False,id=None,returnOneSignal = False):         # it reads signals as a CSV file
@@ -93,7 +96,7 @@ class utils:
         signalQualValue.columns = signalQualColumns
         signalQualValue = signalQualValue[self.signalQualId]
         lenPatient = min(len(patient),len(absolutelyNormal))
-        lenNormal = lenPatient + 200
+        lenNormal = lenPatient
         self.validNormalSignalsName = self.isSignalValid(len = lenNormal,list = absolutelyNormal,qualList=signalQualValue,theresh=2,signalQualId=self.signalQualId)
         self.validPatientSignalsName = self.isSignalValid(len = lenPatient,list = patient,qualList=signalQualValue,theresh=2,signalQualId=self.signalQualId)
     @staticmethod
