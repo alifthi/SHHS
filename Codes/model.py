@@ -84,6 +84,12 @@ class model:
         return tf.keras.Model(inputs = list(inputs.values()),outputs = x)
     def transformer(self):
         pass
+    def compile(self):
+        opt = optim.Adam(learning_rate = 0.01)  # we can use lr schedual
+        Loss = loss.BinaryCrossentropy()
+        self.net.compile(optimizer = opt,loss = Loss,metrics = ['accuracy'])
+        self.net.summary()
+        
     def trainModel(self):
         pass
     def plotHist(self):
@@ -92,7 +98,6 @@ class model:
         pass
     def test(self):
         pass
-    def train(self):
-        pass
+
 len = 1
 net = model(Len = 1)
