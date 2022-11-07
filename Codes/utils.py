@@ -52,7 +52,7 @@ class utils:
             return List
         else:
             return None
-    def globForOnEdfs(self):
+    def globForOnEdfs(self,normalLen=10,patientLen=10):
         import glob
         normalData = pd.DataFrame(columns=self.targetSignals)
         patientData = pd.DataFrame(columns=self.targetSignals)
@@ -64,20 +64,36 @@ class utils:
                 if id in list(self.validNormalSignalsName['id']):                           	# condition will be True, if readed ID be our target
                     index = self.validNormalSignalsName.loc[self.validNormalSignalsName['id']==id].index[0]
                     if (len(self.validNormalSignalsName['Signals'][index]) >= len(self.signalQualId)-1):        # condition will be True, if every signal be valid
-                        signal = self.readAsDF(signalPath=path)
+                        if(normalLen == normalCounter):
+                            if (patientLen == patientCounter):
+                                return [normalData,patientData]
+                            else:
+                                continue
+                        try :
+                            signal = self.readAsDF(signalPath=path)
+                        except:
+                            continue
                         if signal == None:
                             continue 
                         normalData.loc[normalCounter] = signal
-                        print(normalCounter)
-                        if normalCounter ==5:
-                            return [normalData,patientData]
+                        if normalCounter%5 == 0: 
+                            print(f'{normalCounter}th normal signal read!')
+
                         normalCounter +=1 
                 elif id in list(self.validPatientSignalsName['id']):
+                    if  (patientLen == patientCounter):
+                        if (normalLen == normalCounter) :
+                            return [normalData,patientData] 
+                        else :
+                            continue
                     index = self.validPatientSignalsName.loc[self.validPatientSignalsName['id']==id].index[0]
                     if (len(self.validPatientSignalsName['Signals'][index]) >= (len(self.signalQualId)-1)):
                         signal = self.readAsDF(signalPath=path)
                         if signal == None:
                             continue
+                        if patientCounter%20 == 0: 
+                            print(f'{patientCounter}th patient signal read!')
+
                         patientData.loc[patientCounter] = signal
                         patientCounter +=1   
         return [normalData,patientData]
