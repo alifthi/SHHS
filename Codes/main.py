@@ -10,7 +10,7 @@ path2save = '~/Documents/Projects/SHHS/Data/signalsAsCSV'
 signalDir = ['/home/ali/Documents/projects/SHHS/Data/part2']
 allInputNames = ['sao2','hr','eeg','eegsec','ecg','emg','eogl',
                         'eogr','thorres','abdores','newair','light','position']
-inputNames = ['ecg'] #,'eegsec','eogl','eogr']
+inputNames = ['ecg']
 util = utils(signalDir=signalDir,targetSignals=inputNames,
             signalQualIdPath=signalQualIdPath,signalQualValuePath=signalQualValuePath,
             idPath=idPath,path2save=path2save)
@@ -21,11 +21,9 @@ Data = pd.concat([normalData,patientData]).reset_index()
 del(normalData,patientData)
 Data = util.squeeze(Data,inputNames)
 Data = np.squeeze(Data)
-# t = targets[0],r = np.expand_dims([t],axis = -1), e = np.expand_dims([d[0]],axis = 0),d = np.squeeze(Data)
 data =np.expand_dims([Data[0]],axis = 0)
 t = targets[0]
 Targets = np.expand_dims([t],axis = -1)
-
 for i,s in enumerate(Data[1:]):
     index = util.len*util.freq[inputNames[0]]
     if len(s)>index:
