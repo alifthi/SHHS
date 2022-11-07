@@ -3,25 +3,23 @@ author: alifthi
 
 Email: alifathi8008@gmail.com
 
-lastEdit: 2022/NOV/3
+lastEdit: 2022/NOV/5
 '''
 import pyedflib as edf
 import pandas as pd
+import numpy as np
 class utils:
-    def __init__(self,signalDir,idPath,signalQualIdPath,signalQualValuePath,path2save):
+    def __init__(self,signalDir,idPath,signalQualIdPath,
+                signalQualValuePath,path2save,targetSignals):
+
         self.signalQualIdPath = signalQualIdPath                # saves the path of signal quality id file
         self.signalQualValuePath = signalQualValuePath          # saves the path of signal quality value file
         self.signalDir = signalDir                              # path of signals
         self.idPath = idPath                                    # location that target ids saved
         self.path2save = path2save                              # location to save signal that converted to csv
-        self.targetSignals = ['sao2','hr','eeg','eegsec','ecg','emg',
-                            'eogl','eogr','thorres','abdores','newair',
-                            'light','position']
+        self.targetSignals = targetSignals
         self.freq = {'sao2': 1, 'hr': 1, 'eogl': 50 ,'eogr': 50, 'eeg': 125,'eegsec': 125,'ecg': 125,
                     'emg': 125, 'thorres': 10, 'abdores': 10, 'position': 1, 'light': 1, 'newair': 10}
-        self.targetSignals = ['eeg','eegsec','ecg','emg',
-                            'eogl','eogr']
-
         self.len = 32010
         self.namesFilter = '.,_ ()'
     def readAsDF(self,signalPath,save = False,id=None,returnOneSignal = False):         # it reads signals as a CSV file
@@ -58,19 +56,21 @@ class utils:
         import glob
         normalData = pd.DataFrame(columns=self.targetSignals)
         patientData = pd.DataFrame(columns=self.targetSignals)
-        targets = []
         normalCounter = 0
         patientCounter = 0
         for Dir in self.signalDir:
-            for path in glob.glob(Dir+'/*'):                                                   # for on every signal in Dir path
+            for path in glob.glob(Dir+'/*'):    
                 id = int(path.split('/')[-1].split('-')[1].split('.')[0])                      # extract id in the path
                 if id in list(self.validNormalSignalsName['id']):                           	# condition will be True, if readed ID be our target
                     index = self.validNormalSignalsName.loc[self.validNormalSignalsName['id']==id].index[0]
                     if (len(self.validNormalSignalsName['Signals'][index]) >= len(self.signalQualId)-1):        # condition will be True, if every signal be valid
                         signal = self.readAsDF(signalPath=path)
                         if signal == None:
-                            continue
+                            continue 
                         normalData.loc[normalCounter] = signal
+                        print(normalCounter)
+                        if normalCounter ==5:
+                            return [normalData,patientData]
                         normalCounter +=1 
                 elif id in list(self.validPatientSignalsName['id']):
                     index = self.validPatientSignalsName.loc[self.validPatientSignalsName['id']==id].index[0]
@@ -111,6 +111,19 @@ class utils:
                     tmpId.append(v)
             goodSignals.loc[i] = [int(id),tmpId]
         return goodSignals
+    @staticmethod
+    def squeeze(Data,names):
+        data = []
+        for j in range(len(Data)):
+            array = []
+            for i in names:   
+                tmpArray = np.asarray(Data[i][j])
+                shape = tmpArray.shape
+                tmpArray = np.reshape(tmpArray,[shape[0]*shape[1]])
+                tmpArray = np.asarray(tmpArray).astype('float32').tolist()            
+                array.append(tmpArray)
+            data.append(array)
+        return data
     def buildTimeseriesGenerator(self,series,targets):
         from tensorflow.keras.preprocessing.sequence import TimeseriesGenerator
         gen = TimeseriesGenerator(series,targets,length = self.len,sampling_rate = self.freq.values)
