@@ -54,11 +54,11 @@ class model:
             # x = ksl.MaxPooling1D(poolingSize,padding = 'same')(x)
             # x = ksl.BatchNormalization()(x)
 
-            x = ksl.Resizing(height = 32,width = 1024)(x) 
+            x = ksl.Resizing(height = 1,width = 1024)(x) 
             outputs[name] = x 
         concatLayer = ksl.concatenate(list(outputs.values()),axis = 0)
 
-        x = ksl.Reshape((1,) + x.shape[1:])(concatLayer)
+        x = ksl.Reshape((1,) + concatLayer.shape[1:])(concatLayer)
         x = ksl.Conv2D(64,kernel_size = 3,strides = strides2D,padding = 'same')(x)
         x = ksl.MaxPooling2D(poolingSize2D,padding = 'same')(x)
         x = ksl.BatchNormalization()(x)
@@ -72,7 +72,6 @@ class model:
         x = ksl.BatchNormalization()(x)
         
         x = ksl.Flatten()(x)
-        
         x = ksl.Dense(256)(x)
         x = ksl.LeakyReLU(ReLURate)(x)
         x = ksl.Dropout(dropoutRate)(x)
@@ -81,8 +80,8 @@ class model:
         x = ksl.LeakyReLU(ReLURate)(x)
         x = ksl.Dropout(dropoutRate)(x)
 
-        x = ksl.Dense(1,activation = 'sigmoid')(x)
-        return tf.keras.Model(inputs = list(inputs.values()),outputs = x)
+        output = ksl.Dense(1,activation = 'sigmoid')(x)
+        return tf.keras.Model(inputs = list(inputs.values()),outputs = output)
     def transformer(self):
         pass
     def compile(self):
