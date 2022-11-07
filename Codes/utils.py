@@ -97,6 +97,23 @@ class utils:
                         patientData.loc[patientCounter] = signal
                         patientCounter +=1   
         return [normalData,patientData]
+    def prepareData(self,Data,targets,inputNames):
+        Data = np.squeeze(Data)
+        data =np.expand_dims([Data[0]],axis = 0)
+        t = targets[0]
+        Targets = np.expand_dims([t],axis = -1)
+        for i,s in enumerate(Data[1:]):
+            index = self.len*self.freq[inputNames[0]]
+            if len(s)>index:
+                s = s[:index]    
+            else :
+                s += [0]*(index-len(s))
+            tmp = np.expand_dims([s],axis = 0)    
+            t = targets[i]
+            t = np.expand_dims([t],axis = -1)
+            data = np.concatenate([data,tmp],axis=1)
+            Targets = np.concatenate([Targets,t],axis=0)
+        return [data,Targets]
     @staticmethod
     def preprocessing(series,targets):
         from sklearn.model_selection import train_test_split

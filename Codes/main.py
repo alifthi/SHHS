@@ -2,7 +2,6 @@ from model import model
 from utils import utils
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 idPath = '~/Documents/projects/SHHS/Data/SHHS1.xlsx'
 signalQualIdPath = '~/Documents/projects/SHHS/Data/signal quality.xlsx'
 signalQualValuePath = '~/Documents/projects/SHHS/Data/datasets/1- shhs1-dataset-0.13.0.csv'
@@ -20,21 +19,7 @@ targets = [0]*len(normalData)+[1]*len(patientData)
 Data = pd.concat([normalData,patientData]).reset_index()
 del(normalData,patientData)
 Data = util.squeeze(Data,inputNames)
-Data = np.squeeze(Data)
-data =np.expand_dims([Data[0]],axis = 0)
-t = targets[0]
-Targets = np.expand_dims([t],axis = -1)
-for i,s in enumerate(Data[1:]):
-    index = util.len*util.freq[inputNames[0]]
-    if len(s)>index:
-        s = s[:index]    
-    else :
-        s += [0]*(index-len(s))
-    tmp = np.expand_dims([s],axis = 0)    
-    t = targets[i]
-    t = np.expand_dims([t],axis = -1)
-    data = np.concatenate([data,tmp],axis=1)
-    Targets = np.concatenate([Targets,t],axis=0)
+[data,Targets] = util.prepareData(Data = Data,targets = targets,inputNames = inputNames)
 del(Data,targets)
 model = model(inputNames=inputNames)
 model.compile()
