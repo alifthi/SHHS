@@ -19,12 +19,13 @@ class model:
         self.inputNames = inputNames
         self.freq = {'sao2': 1, 'hr': 1, 'eogl': 50 ,'eogr': 50, 'eeg': 125,'eegsec': 125,'ecg': 125,
                     'emg': 125, 'thorres': 10, 'abdores': 10, 'position': 1, 'light': 1, 'newair': 10}
-        self.len = 32010
+        self.len = 30 # 32010
         self.net = self.buildModel()
-    def buildModel(self,transfer = False):
+    def buildModel(self):
         # define inputs of model
-        inputs = {}
-        outputs = {}
+        inputs = {}                 # a dictionar that contain all inputs
+        outputs = {}                # A dictionary that contain all outputs
+        # define some hyper parametere
         d = 3
         kernelSize = 3
         poolingSize = 2
@@ -33,6 +34,7 @@ class model:
         ReLURate = 0.1
         dropoutRate = 0.1
         for name in self.inputNames:
+            # define first networks of every inputs of model
             print(name)
             r = self.freq[name] 
 
@@ -50,13 +52,14 @@ class model:
             x = ksl.MaxPooling1D(poolingSize,padding = 'same')(x)
             x = ksl.BatchNormalization()(x)
             
-            # x = ksl.Conv1D(16,kernel_size = kernelSize,strides = int(np.ceil(r/d)),padding = 'same')(x)
-            # x = ksl.MaxPooling1D(poolingSize,padding = 'same')(x)
-            # x = ksl.BatchNormalization()(x)
+            x = ksl.Conv1D(16,kernel_size = kernelSize,strides = int(np.ceil(r/d)),padding = 'same')(x)
+            x = ksl.MaxPooling1D(poolingSize,padding = 'same')(x)
+            x = ksl.BatchNormalization()(x)
 
             x = ksl.Resizing(height = 1,width = 1024)(x) 
             outputs[name] = x 
-        concatLayer = ksl.concatenate(list(outputs.values()),axis = 0)
+        # define shared model
+        concatLayer = ksl.concatenate(list(outputs.values()),axis = -1)
 
         x = ksl.Reshape((1,) + concatLayer.shape[1:])(concatLayer)
         x = ksl.Conv2D(64,kernel_size = 3,strides = strides2D,padding = 'same')(x)
@@ -90,7 +93,7 @@ class model:
         self.net.compile(optimizer = opt,loss = Loss,metrics = ['accuracy'])
         self.net.summary()
         
-    def trainModel(self,signal=None,targets=None,epochs = 1,batchSize = 125,dataGenerator = None):   
+    def trainModel(self,signal=None,targets=None,epochs = 1,batchSize = 125):   
         self.net.fit(signal,targets,epochs = epochs,batch_size = batchSize)
     def plotHist(self):
         pass
