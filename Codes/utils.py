@@ -20,7 +20,7 @@ class utils:
         self.targetSignals = targetSignals
         self.freq = {'sao2': 1, 'hr': 1, 'eogl': 50 ,'eogr': 50, 'eeg': 125,'eegsec': 125,'ecg': 125,
                     'emg': 125, 'thorres': 10, 'abdores': 10, 'position': 1, 'light': 1, 'newair': 10}
-        self.len = 32010
+        self.len = 30 # 32010
         self.namesFilter = '.,_ ()'
     def readAsDF(self,signalPath,save = False,id=None,returnOneSignal = False):         # it reads signals as a CSV file
         file = edf.EdfReader(signalPath)                    
@@ -38,11 +38,13 @@ class utils:
             if not(name in self.targetSignals):
                 continue
             rate = int(headers[i]['sample_rate'])
+            lowerRate = 30
             chunks = [signal[x:x+rate] for x in range(0, len(signal), rate)]                # this line of code will chunk the main signal in term of sampling frequency
-            if returnOneSignal:                     
-                table[name] = chunks
+            lowerChunk = [chunks[x:x+lowerRate] for x in range(0, len(chunks), lowerRate)]
+            if returnOneSignal:  
+                table[name] = lowerChunk
             else:
-                List.append(chunks)
+                List.append(lowerChunk)
         if save:
             table.to_csv(self.path2save+'/'+str(id)+'.csv')                                 # saving every signal as csv file 
         file.close()
@@ -70,50 +72,71 @@ class utils:
                             else:
                                 continue
                         try :
-                            signal = self.readAsDF(signalPath=path)
+                            signal = self.readAsDF(signalPath=path,returnOneSignal=True)
                         except:
                             continue
-                        if signal == None:
-                            continue 
-                        normalData.loc[normalCounter] = signal
+                        try:
+                            if signal == None:
+                                continue
+                        except:
+                            pass
+
+                        signal = pd.DataFrame(signal)
+                        normalData = pd.concat([normalData,signal],axis=0,ignore_index=True)
+                        print(normalData.shape)
                         if normalCounter%5 == 0: 
                             print(f'{normalCounter}th normal signal read!')
-
                         normalCounter +=1 
                 elif id in list(self.validPatientSignalsName['id']):
                     if  (patientLen == patientCounter):
                         if (normalLen == normalCounter) :
+                            normalData.columns = self.targetSignals
+                            patientData.columns = self.targetSignals
                             return [normalData,patientData] 
                         else :
                             continue
                     index = self.validPatientSignalsName.loc[self.validPatientSignalsName['id']==id].index[0]
                     if (len(self.validPatientSignalsName['Signals'][index]) >= (len(self.signalQualId)-1)):
-                        signal = self.readAsDF(signalPath=path)
-                        if signal == None:
-                            continue
+                        signal = self.readAsDF(signalPath=path,returnOneSignal=True)
+                        try:
+                            if signal == None:
+                                continue
+                        except:
+                            pass
+
                         if patientCounter%20 == 0: 
                             print(f'{patientCounter}th patient signal read!')
-
-                        patientData.loc[patientCounter] = signal
-                        patientCounter +=1   
+                        signal = pd.DataFrame(signal)
+                        patientData = pd.concat([patientData,signal],axis=0,ignore_index=True)
+                        patientCounter +=1
+        normalData = normalData.T
+        patientData = patientData.T
         return [normalData,patientData]
     def prepareData(self,Data,targets,inputNames):
-        Data = np.squeeze(Data)
-        data =np.expand_dims([Data[0]],axis = 0)
+        mainData = []
         t = targets[0]
         Targets = np.expand_dims([t],axis = -1)
-        for i,s in enumerate(Data[1:]):
-            index = self.len*self.freq[inputNames[0]]
-            if len(s)>index:
-                s = s[:index]    
-            else :
-                s += [0]*(index-len(s))
-            tmp = np.expand_dims([s],axis = 0)    
-            t = targets[i]
-            t = np.expand_dims([t],axis = -1)
-            data = np.concatenate([data,tmp],axis=1)
-            Targets = np.concatenate([Targets,t],axis=0)
-        return [data,Targets]
+        for n,name in enumerate(inputNames):
+            data = np.squeeze(Data[0][n])
+            data = np.expand_dims([data],axis = 0)
+            for i,s in enumerate(Data[1:]):
+                s = s[n]
+                index = self.len*self.freq[name]
+                if len(s)>index:
+                    s = s[:index]    
+                else :
+                    s += [0]*(index-len(s))
+                tmp = np.expand_dims([s],axis = 0)   
+                data = np.concatenate([data,tmp],axis=1)
+                if n == 0: 
+                    t = targets[i]
+                    t = np.expand_dims([t],axis = -1)    
+                    Targets = np.concatenate([Targets,t],axis=0)
+                if i%100 ==0 and not (i == 0) :
+                    print(n)
+                    break
+            mainData.append(data)
+        return [mainData,Targets]
     @staticmethod
     def preprocessing(series,targets):
         from sklearn.model_selection import train_test_split
@@ -152,8 +175,8 @@ class utils:
             for i in names:   
                 tmpArray = np.asarray(Data[i][j])
                 shape = tmpArray.shape
-                tmpArray = np.reshape(tmpArray,[shape[0]*shape[1]])
-                tmpArray = np.asarray(tmpArray).astype('float32').tolist()            
+                tmpArray = np.reshape(tmpArray,[shape[1]*shape[0]])
+                tmpArray = np.asarray(tmpArray).astype('float32').tolist() 
                 array.append(tmpArray)
             data.append(array)
         return data
