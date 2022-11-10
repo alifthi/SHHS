@@ -80,10 +80,8 @@ class utils:
                                 continue
                         except:
                             pass
-
                         signal = pd.DataFrame(signal)
                         normalData = pd.concat([normalData,signal],axis=0,ignore_index=True)
-                        print(normalData.shape)
                         if normalCounter%5 == 0: 
                             print(f'{normalCounter}th normal signal read!')
                         normalCounter +=1 
@@ -103,7 +101,6 @@ class utils:
                                 continue
                         except:
                             pass
-
                         if patientCounter%20 == 0: 
                             print(f'{patientCounter}th patient signal read!')
                         signal = pd.DataFrame(signal)
@@ -119,6 +116,9 @@ class utils:
         for n,name in enumerate(inputNames):
             data = np.squeeze(Data[0][n])
             data = np.expand_dims([data],axis = 0)
+            print('###################')
+            print(f'data shape: {data.shape}')
+            print(f'reading {n}th signal')
             for i,s in enumerate(Data[1:]):
                 s = s[n]
                 index = self.len*self.freq[name]
@@ -132,15 +132,18 @@ class utils:
                     t = targets[i]
                     t = np.expand_dims([t],axis = -1)    
                     Targets = np.concatenate([Targets,t],axis=0)
-                if i%100 ==0 and not (i == 0) :
-                    print(n)
-                    break
+                if i%500 ==0 and not (i == 0) :
+                    print(i)
             mainData.append(data)
         return [mainData,Targets]
-    @staticmethod
-    def preprocessing(series,targets):
+    def preprocessing(self,series,targets):
+        for i in range(len(series)):
+            for j in range(len(self.targetSignals)):
+                m = max(max(series[i][j]),1)
+                for z in range(len(series[i][j])):
+                    series[i][j][z] /= m
         from sklearn.model_selection import train_test_split
-        trainSeries,testSetries,trainTargets,testTarget = train_test_split(series,targets,test_size = 0)
+        trainSeries,testSetries,trainTargets,testTarget = train_test_split(series,targets,test_size = 0.1)
         return [trainSeries,testSetries,trainTargets,testTarget]
     def readCsv(self):                                          # read needed CSV files
         patient = pd.read_excel(self.idPath,sheet_name='Patient')
@@ -180,7 +183,3 @@ class utils:
                 array.append(tmpArray)
             data.append(array)
         return data
-    def buildTimeseriesGenerator(self,series,targets):
-        from tensorflow.keras.preprocessing.sequence import TimeseriesGenerator
-        gen = TimeseriesGenerator(series,targets,length = self.len,sampling_rate = self.freq.values)
-        return gen
