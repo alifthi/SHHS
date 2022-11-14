@@ -38,6 +38,7 @@ class utils:
                     'emg': 125, 'thorres': 10, 'abdores': 10, 'position': 1, 'light': 1, 'newair': 10}
         self.len = 30 # 32010
         self.namesFilter = '.,_ ()'
+        self.readSignals  = []
     def readAsDF(self,signalPath,save = False,id=None,returnOneSignal = False):         # it reads signals as a CSV file
         file = edf.EdfReader(signalPath)                    
         headers = file.getSignalHeaders()  
@@ -72,13 +73,17 @@ class utils:
             return None
     def globForOnEdfs(self,normalLen=10,patientLen=10):
         import glob
+        normalLen -=1
+        patientLen -=1
         normalData = pd.DataFrame(columns=self.targetSignals)
         patientData = pd.DataFrame(columns=self.targetSignals)
         normalCounter = 0
         patientCounter = 0
         for Dir in self.signalDir:
             for path in glob.glob(Dir+'/*'):    
-                id = int(path.split('/')[-1].split('-')[1].split('.')[0])                      # extract id in the path
+                id = int(path.split('/')[-1].split('-')[1].split('.')[0])            # extract id in the path
+                if id in self.readSignals:
+                    continue
                 if id in list(self.validNormalSignalsName['id']):                           	# condition will be True, if readed ID be our target
                     index = self.validNormalSignalsName.loc[self.validNormalSignalsName['id']==id].index[0]
                     if (len(self.validNormalSignalsName['Signals'][index]) >= len(self.signalQualId)-1):        # condition will be True, if every signal be valid
@@ -89,6 +94,7 @@ class utils:
                                 continue
                         try :
                             signal = self.readAsDF(signalPath=path,returnOneSignal=True)
+                            self.readSignals.append(id)
                         except:
                             continue
                         try:
@@ -99,7 +105,7 @@ class utils:
                         signal = pd.DataFrame(signal)
                         normalData = pd.concat([normalData,signal],axis=0,ignore_index=True)
                         if normalCounter%5 == 0: 
-                            print(f'{normalCounter}th normal signal read!')
+                            print(f'{normalCounter+1}th normal signal read!')
                         normalCounter +=1 
                 elif id in list(self.validPatientSignalsName['id']):
                     if  (patientLen == patientCounter):
@@ -112,13 +118,14 @@ class utils:
                     index = self.validPatientSignalsName.loc[self.validPatientSignalsName['id']==id].index[0]
                     if (len(self.validPatientSignalsName['Signals'][index]) >= (len(self.signalQualId)-1)):
                         signal = self.readAsDF(signalPath=path,returnOneSignal=True)
+                        self.readSignals.append(id)
                         try:
                             if signal == None:
                                 continue
                         except:
                             pass
                         if patientCounter%20 == 0: 
-                            print(f'{patientCounter}th patient signal read!')
+                            print(f'{patientCounter+1}th patient signal read!')
                         signal = pd.DataFrame(signal)
                         patientData = pd.concat([patientData,signal],axis=0,ignore_index=True)
                         patientCounter +=1
@@ -152,15 +159,17 @@ class utils:
                     print(i)
             mainData.append(data)
         return [mainData,Targets]
-    def preprocessing(self,series,targets):
+    def preprocessing(self,series,targets,split = True):
         for i in range(len(series)):
             for j in range(len(self.targetSignals)):
                 m = max(max(series[i][j]),1)
                 for z in range(len(series[i][j])):
                     series[i][j][z] /= m
-        from sklearn.model_selection import train_test_split
-        trainSeries,testSetries,trainTargets,testTarget = train_test_split(series,targets,test_size = 0.1)
-        return [trainSeries,testSetries,trainTargets,testTarget]
+        if split:
+            from sklearn.model_selection import train_test_split
+            trainSeries,testSetries,trainTargets,testTarget = train_test_split(series,targets,test_size = 0.1)
+            return [trainSeries,testSetries,trainTargets,testTarget]
+        return [series,targets]
     def readCsv(self):                                          # read needed CSV files
         patient = pd.read_excel(self.idPath,sheet_name='Patient')
         absolutelyNormal = pd.read_excel(self.idPath,sheet_name='Absolutely Normal')
@@ -199,3 +208,27 @@ class utils:
                 array.append(tmpArray)
             data.append(array)
         return data
+    def dataGenerator(self,inputNames):
+        while 1:    
+            self.readCsv()
+            [normalData,patientData] = self.globForOnEdfs(normalLen=8,patientLen=8)
+            targets = [0]*(len(normalData.T))+[1]*(len(patientData.T))
+            print(len(targets))
+            Data = pd.concat([normalData.T,patientData.T],axis=0,ignore_index=True) 
+            Data = Data.dropna()
+            Data = Data.reset_index()
+            Data = Data.drop('index',axis = 1)
+            Data.columns = inputNames
+            print(Data)
+            del(normalData,patientData)
+            print(len(targets))
+            Data = self.squeeze(Data,inputNames)
+            trainData,trainTargets = self.preprocessing(series=Data,targets=targets,split = False)
+            [trainData,trainTargets] = self.prepareData(Data = trainData,targets = trainTargets,inputNames = inputNames)
+            del(Data,targets)
+            Targets = np.expand_dims(trainTargets,axis=-1)
+            Data = []
+            for i,d in enumerate(trainData):
+                d = d.reshape([np.shape(d)[1],1,self.len*self.freq[inputNames[i]]])
+                Data.append(d)
+            yield Data, Targets

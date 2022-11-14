@@ -39,10 +39,19 @@ inputNames = list(freq.keys()) # ['ecg']
 util = utils(signalDir=signalDir,targetSignals=inputNames,
             signalQualIdPath=signalQualIdPath,signalQualValuePath=signalQualValuePath,
             idPath=idPath,path2save=path2save)
+# trainData,testData,trainTargets,testTargets = self.preprocessing(series=Data,targets=targets)
+# [testData,testTargets] = self.prepareData(Data = testData,targets = testTargets,inputNames = inputNames)
+# targetsTest = np.expand_dims(testTargets,axis=-1)
+# dataTest = []
+# for i,d in enumerate(testData):
+#     d = d.reshape([np.shape(d)[1],1,self.len*self.freq[inputNames[i]]])
+#     dataTest.append(d)
+# del(testData)
 util.readCsv()
-[normalData,patientData] = util.globForOnEdfs(normalLen=7,patientLen=7)
-targets = [0]*(len(normalData.T))+[1]*(len(patientData.T))
-Data = pd.concat([normalData.T,patientData.T],axis=0,ignore_index=True) 
+[normalData,patientData] = util.globForOnEdfs(normalLen=4,patientLen=4)
+targets = [0]*(len(normalData))+[1]*(len(patientData))
+print(len(targets))
+Data = pd.concat([normalData,patientData],axis=0,ignore_index=True) 
 Data = Data.dropna()
 Data = Data.reset_index()
 Data = Data.drop('index',axis = 1)
@@ -51,23 +60,15 @@ print(Data)
 del(normalData,patientData)
 print(len(targets))
 Data = util.squeeze(Data,inputNames)
-trainData,testData,trainTargets,testTargets = util.preprocessing(series=Data,targets=targets)
-[trainData,trainTargets] = util.prepareData(Data = trainData,targets = trainTargets,inputNames = inputNames)
-del(Data,targets)
-Targets = np.expand_dims(trainTargets,axis=-1)
-Data = []
-for i,d in enumerate(trainData):
-    d = d.reshape([np.shape(d)[1],1,util.len*util.freq[inputNames[i]]])
-    Data.append(d)
-[testData,testTargets] = util.prepareData(Data = testData,targets = testTargets,inputNames = inputNames)
-targetsTest = np.expand_dims(testTargets,axis=-1)
-dataTest = []
-for i,d in enumerate(testData):
-    d = d.reshape([np.shape(d)[1],1,util.len*util.freq[inputNames[i]]])
-    dataTest.append(d)
-del(testData)
+valData,valTargets = util.preprocessing(series=Data,targets=targets,split = False)
+[trainData,trainTargets] = util.prepareData(Data = valData,targets = valTargets,inputNames = inputNames)
+
+dataGenerator = util.dataGenerator
+
+del(util)
 model = model(inputNames=inputNames)
 model.compile()
-hist = model.trainModel(signal=Data,targets=Targets,validationData=dataTest,validationTargets=targetsTest,batchSize=128,epochs=5)
-model.plotHist(hist)
-model.net.save('/home/ali/Documents/projects/SHHS/Model/modelWithECG30Sec.h5')
+model.trainGenerator(dataGenerator,inputNames=inputNames,valData=[valData,valTargets],saveAddr = '/home/ali/Documents/projects/SHHS/Model/')
+# hist = model.trainModel(signal=Data,targets=Targets,validationData=dataTest,validationTargets=targetsTest,batchSize=128,epochs=5)
+# model.plotHist(hist)
+# model.net.save('/home/ali/Documents/projects/SHHS/Model/modelWithECG30Sec.h5')

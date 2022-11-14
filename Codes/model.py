@@ -113,7 +113,14 @@ class model:
     def trainModel(self,signal=None,targets=None,validationData=None,validationTargets=None,batchSize = 64,epochs = 1):   
         hist = self.net.fit(signal,targets,epochs = epochs,batch_size = batchSize,
                     validation_data=[validationData,validationTargets])
-        return hist    
+        return hist
+    def trainGenerator(self,generator,inputNames,saveAddr,valData):
+        epochs = 10
+        steps = 7500./32
+        for i in range(epochs):
+            gen = generator(inputNames)
+            self.net.fit_generator(gen,epochs=5, steps_per_epoch=steps,validation_data=valData)
+            self.net.save(saveAddr+'model_' + str(i) + '.h5')
     @staticmethod
     def plotHist(Hist):
         from matplotlib import pyplot as plt
