@@ -56,19 +56,19 @@ class model:
 
             inputs[name+'Net'] = ksl.Input(shape = [None,self.len*r])
 
-            x = ksl.Conv1D(64,kernel_size = kernelSize,padding = 'same',activation = 'relu')(inputs[name+'Net'])
+            x = ksl.Conv1D(128,kernel_size = kernelSize,padding = 'same')(inputs[name+'Net'])
             x = ksl.MaxPooling1D(poolingSize,padding = 'same')(x)
             x = ksl.BatchNormalization()(x)
             
-            x = ksl.Conv1D(32,kernel_size = kernelSize,padding = 'same',activation = 'relu')(x)
+            x = ksl.Conv1D(64,kernel_size = kernelSize,padding = 'same')(x)
             x = ksl.MaxPooling1D(poolingSize,padding = 'same')(x)
             x = ksl.BatchNormalization()(x)
             
-            x = ksl.Conv1D(16,kernel_size = kernelSize,padding = 'same',activation = 'relu')(x)
+            x = ksl.Conv1D(32,kernel_size = kernelSize,padding = 'same')(x)
             x = ksl.MaxPooling1D(poolingSize,padding = 'same')(x)
             x = ksl.BatchNormalization()(x)
             
-            x = ksl.Conv1D(16,kernel_size = kernelSize,padding = 'same',activation = 'relu')(x)
+            x = ksl.Conv1D(16,kernel_size = kernelSize,padding = 'same')(x)
             x = ksl.MaxPooling1D(poolingSize,padding = 'same')(x)
             x = ksl.BatchNormalization()(x)
 
@@ -76,30 +76,42 @@ class model:
             outputs[name] = x 
         # define shared model
         concatLayer = ksl.concatenate(list(outputs.values()),axis = -1)
-        x = ksl.Conv1D(64,kernel_size = 3,strides = strides2D,padding = 'same',activation = 'relu')(concatLayer)
+
+        x = ksl.Conv1D(64,kernel_size = 3,strides = strides2D,padding = 'same')(concatLayer)
         x = ksl.MaxPooling1D(poolingSize2D,padding = 'same')(x)
         x = ksl.BatchNormalization()(x)
 
-        x = ksl.Conv1D(32,kernel_size = 3,strides = strides2D,padding = 'same',activation = 'relu')(x)
+        x = ksl.Conv1D(64,kernel_size = 3,strides = strides2D,padding = 'same')(concatLayer)
         x = ksl.MaxPooling1D(poolingSize2D,padding = 'same')(x)
         x = ksl.BatchNormalization()(x)
 
-        x = ksl.Conv1D(16,kernel_size = 3,strides = strides2D,padding = 'same',activation = 'relu')(x)
+        x = ksl.Conv1D(32,kernel_size = 3,strides = strides2D,padding = 'same')(x)
+        x = ksl.MaxPooling1D(poolingSize2D,padding = 'same')(x)
+        x = ksl.BatchNormalization()(x)
+
+        x = ksl.Conv1D(16,kernel_size = 3,strides = strides2D,padding = 'same')(x)
         x = ksl.MaxPooling1D(poolingSize2D,padding = 'same')(x)
         x = ksl.BatchNormalization()(x)
         
         x = ksl.Dense(512)(x)
         x = ksl.LeakyReLU(ReLURate)(x)
-        # x = ksl.Dropout(0.2)(x)
+        x = ksl.Dropout(0.2)(x)
 
         x = ksl.Dense(256)(x)
         x = ksl.LeakyReLU(ReLURate)(x)
-        # x = ksl.Dropout(0.2)(x)
+        x = ksl.Dropout(0.1)(x)
+
+        x = ksl.Dense(256)(x)
+        x = ksl.LeakyReLU(ReLURate)(x)
+        x = ksl.Dropout(0.1)(x)
 
         x = ksl.Dense(128)(x)
         x = ksl.LeakyReLU(ReLURate)(x)
-        # x = ksl.Dropout(0.2)(x)
+        x = ksl.Dropout(0.1)(x)
 
+        x = ksl.Dense(64)(x)
+        x = ksl.LeakyReLU(ReLURate)(x)
+        
         output = ksl.Dense(1,activation = 'sigmoid')(x)
         return tf.keras.Model(inputs = list(inputs.values()),outputs = output)
     def transformer(self):
@@ -117,9 +129,14 @@ class model:
     def trainGenerator(self,generator,inputNames,saveAddr,valData):
         epochs = 10
         steps = 7500./32
+        steps = 10
         for i in range(epochs):
+            # trainD,traint = generator(inputNames)
             gen = generator(inputNames)
-            self.net.fit_generator(gen,epochs=5, steps_per_epoch=steps,validation_data=valData)
+            # self.net.fit(trainD,traint,epochs=5,batch_size=32,validation_data=valData)
+            self.net.fit_generator(gen,epochs=1, steps_per_epoch=steps,
+                                    validation_data=valData)
+            # del(gen)
             self.net.save(saveAddr+'model_' + str(i) + '.h5')
     @staticmethod
     def plotHist(Hist):

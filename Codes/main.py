@@ -40,15 +40,10 @@ util = utils(signalDir=signalDir,targetSignals=inputNames,
             signalQualIdPath=signalQualIdPath,signalQualValuePath=signalQualValuePath,
             idPath=idPath,path2save=path2save)
 # trainData,testData,trainTargets,testTargets = self.preprocessing(series=Data,targets=targets)
-# [testData,testTargets] = self.prepareData(Data = testData,targets = testTargets,inputNames = inputNames)
-# targetsTest = np.expand_dims(testTargets,axis=-1)
-# dataTest = []
-# for i,d in enumerate(testData):
-#     d = d.reshape([np.shape(d)[1],1,self.len*self.freq[inputNames[i]]])
-#     dataTest.append(d)
-# del(testData)
+
 util.readCsv()
-[normalData,patientData] = util.globForOnEdfs(normalLen=4,patientLen=4)
+[normalData,patientData] = util.globForOnEdfs(normalLen=2,patientLen=2)
+[normalData,patientData] = util.globForOnEdfs(normalLen=2,patientLen=2)
 targets = [0]*(len(normalData))+[1]*(len(patientData))
 print(len(targets))
 Data = pd.concat([normalData,patientData],axis=0,ignore_index=True) 
@@ -61,14 +56,20 @@ del(normalData,patientData)
 print(len(targets))
 Data = util.squeeze(Data,inputNames)
 valData,valTargets = util.preprocessing(series=Data,targets=targets,split = False)
-[trainData,trainTargets] = util.prepareData(Data = valData,targets = valTargets,inputNames = inputNames)
-
+targetsTest = np.expand_dims(valTargets,axis=-1)
+dataTest = []
+for i,d in enumerate(valData):
+    d = d.reshape([np.shape(d)[1],1,util.len*util.freq[inputNames[i]]])
+    dataTest.append(d)
+del(valData,valTargets)
 dataGenerator = util.dataGenerator
-
 del(util)
 model = model(inputNames=inputNames)
 model.compile()
-model.trainGenerator(dataGenerator,inputNames=inputNames,valData=[valData,valTargets],saveAddr = '/home/ali/Documents/projects/SHHS/Model/')
+model.trainGenerator(dataGenerator,inputNames=inputNames,valData=[dataTest,targetsTest],
+                        saveAddr = '/home/ali/Documents/projects/SHHS/Model/')
+
+
 # hist = model.trainModel(signal=Data,targets=Targets,validationData=dataTest,validationTargets=targetsTest,batchSize=128,epochs=5)
 # model.plotHist(hist)
 # model.net.save('/home/ali/Documents/projects/SHHS/Model/modelWithECG30Sec.h5')

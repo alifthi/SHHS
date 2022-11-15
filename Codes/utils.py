@@ -56,6 +56,8 @@ class utils:
                 continue
             rate = int(headers[i]['sample_rate'])
             lowerRate = 30
+            noise = np.random.normal(0, 0.25, np.shape(signal)) 
+            signal = signal+noise
             chunks = [signal[x:x+rate] for x in range(0, len(signal), rate)]                # this line of code will chunk the main signal in term of sampling frequency
             lowerChunk = [chunks[x:x+lowerRate] for x in range(0, len(chunks), lowerRate)]
             if returnOneSignal:  
@@ -211,10 +213,13 @@ class utils:
     def dataGenerator(self,inputNames):
         while 1:    
             self.readCsv()
-            [normalData,patientData] = self.globForOnEdfs(normalLen=8,patientLen=8)
-            targets = [0]*(len(normalData.T))+[1]*(len(patientData.T))
+            [normalData,patientData] = self.globForOnEdfs(normalLen=3,patientLen=3)
+            if len(normalData) <= 15:
+                normalData = normalData.T
+                patientData = patientData.T
+            targets = [0]*(len(normalData))+[1]*(len(patientData))
             print(len(targets))
-            Data = pd.concat([normalData.T,patientData.T],axis=0,ignore_index=True) 
+            Data = pd.concat([normalData,patientData],axis=0,ignore_index=True) 
             Data = Data.dropna()
             Data = Data.reset_index()
             Data = Data.drop('index',axis = 1)
