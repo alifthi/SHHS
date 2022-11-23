@@ -38,26 +38,49 @@ class utils:
                     'emg': 125, 'thorres': 10, 'abdores': 10, 'position': 1, 'light': 1, 'newair': 10}
         self.len = 30 # 32010
         self.namesFilter = '.,_ ()'
-        self.readSignals  = []
+        self.readSignals  = []                  #  this list contain data that read
+        self.invalidSignals = []
     def readAsDF(self,signalPath,save = False,id=None,returnOneSignal = False):         # it reads signals as a CSV file
         file = edf.EdfReader(signalPath)                    
-        headers = file.getSignalHeaders()  
+        headers = file.getSignalHeaders() 
+        names =[]
         if returnOneSignal:                     
             table = pd.DataFrame()
         else:
             List = []
         for i in range(len(headers)):
-            signal = list(file.readSignal(i))
             name = headers[i]['label']
             for c in self.namesFilter:
                 name = name.replace(c,'')
             name = name.lower()
             if not(name in self.targetSignals):
                 continue
+            names.append(name)   
+        if not(len(names) == len(self.targetSignals)):
+            return None
+        names = []
+        for name in headers:
+            names.append(name['label'])
+        for i,name in enumerate(names):
+            for c in self.namesFilter:
+                name = name.replace(c,'')
+                name = name.lower()
+            names[i] = name
+        for name in self.targetSignals: # range(len(names)):
+            # signal = list(file.readSignal(i))
+            # name = headers[:]['label']
+            # i = np.where()
+            # for c in self.namesFilter:
+            #     name = name.replace(c,'')
+            # name = name.lower()
+            # if not(name in self.targetSignals):
+            #     continue
+            if not(name in names):
+                return None
+            i = names.index(name)
             rate = int(headers[i]['sample_rate'])
             lowerRate = 30
-            noise = np.random.normal(0, 0.25, np.shape(signal)) 
-            signal = signal+noise
+            signal = list(file.readSignal(i))
             chunks = [signal[x:x+rate] for x in range(0, len(signal), rate)]                # this line of code will chunk the main signal in term of sampling frequency
             lowerChunk = [chunks[x:x+lowerRate] for x in range(0, len(chunks), lowerRate)]
             if returnOneSignal:  
@@ -65,9 +88,9 @@ class utils:
             else:
                 List.append(lowerChunk)
         if save:
-            table.to_csv(self.path2save+'/'+str(id)+'.csv')                                 # saving every signal as csv file 
+            table.to_csv(self.path2save+'\\'+str(id)+'.csv')                                 # saving every signal as csv file 
         file.close()
-        if returnOneSignal and len(table.columns) == len(self.targetSignals):                     
+        if returnOneSignal: # and len(table.columns) == len(self.targetSignals):                     
             return table
         elif (not returnOneSignal) and len(List) == len(self.targetSignals):
             return List
@@ -77,13 +100,17 @@ class utils:
         import glob
         normalLen -=1
         patientLen -=1
-        normalData = pd.DataFrame(columns=self.targetSignals)
-        patientData = pd.DataFrame(columns=self.targetSignals)
+        # normalData = pd.DataFrame(columns=self.targetSignals)
+        # patientData = pd.DataFrame(columns=self.targetSignals)
+        normalData = []
+        patientData = []
         normalCounter = 0
         patientCounter = 0
         for Dir in self.signalDir:
-            for path in glob.glob(Dir+'/*'):    
-                id = int(path.split('/')[-1].split('-')[1].split('.')[0])            # extract id in the path
+            for path in glob.glob(Dir+'\\*'):
+                id = int(path.split('\\')[-1].split('-')[1].split('.')[0])            # extract id in the path
+                if id in self.invalidSignals:
+                    continue
                 if id in self.readSignals:
                     continue
                 if id in list(self.validNormalSignalsName['id']):                           	# condition will be True, if readed ID be our target
@@ -91,74 +118,88 @@ class utils:
                     if (len(self.validNormalSignalsName['Signals'][index]) >= len(self.signalQualId)-1):        # condition will be True, if every signal be valid
                         if(normalLen == normalCounter):
                             if (patientLen == patientCounter):
+                                normalData = pd.concat(normalData,axis=0,ignore_index=True)
+                                patientData = pd.concat(patientData,axis=0,ignore_index=True)
                                 return [normalData,patientData]
                             else:
                                 continue
                         try :
-                            signal = self.readAsDF(signalPath=path,returnOneSignal=True)
-                            self.readSignals.append(id)
+                            signal = self.readAsDF(signalPath=path,id = id,returnOneSignal=True) 
                         except:
                             continue
                         try:
                             if signal == None:
+                                if not (id in self.invalidSignals):
+                                       self.invalidSignals.append(id)
                                 continue
                         except:
                             pass
-                        signal = pd.DataFrame(signal)
-                        normalData = pd.concat([normalData,signal],axis=0,ignore_index=True)
-                        if normalCounter%5 == 0: 
-                            print(f'{normalCounter+1}th normal signal read!')
+                        # signal = pd.DataFrame(signal)
+                        # normalData = pd.concat([normalData,signal],axis=0,ignore_index=True)
+                        if normalCounter%10 == 0:
+                            print(f'normal: {normalCounter}')
+                        self.readSignals.append(id)
+                        normalData.append(signal)
                         normalCounter +=1 
                 elif id in list(self.validPatientSignalsName['id']):
                     if  (patientLen == patientCounter):
                         if (normalLen == normalCounter) :
-                            normalData.columns = self.targetSignals
-                            patientData.columns = self.targetSignals
+                            # normalData.columns = self.targetSignals
+                            # patientData.columns = self.targetSignals
+                            normalData = pd.concat(normalData,axis=0,ignore_index=True)
+                            patientData = pd.concat(patientData,axis=0,ignore_index=True)
                             return [normalData,patientData] 
                         else :
                             continue
                     index = self.validPatientSignalsName.loc[self.validPatientSignalsName['id']==id].index[0]
                     if (len(self.validPatientSignalsName['Signals'][index]) >= (len(self.signalQualId)-1)):
                         signal = self.readAsDF(signalPath=path,returnOneSignal=True)
-                        self.readSignals.append(id)
                         try:
                             if signal == None:
+                                if not (id in self.invalidSignals):
+                                       self.invalidSignals.append(id)
+                                       
                                 continue
                         except:
                             pass
-                        if patientCounter%20 == 0: 
-                            print(f'{patientCounter+1}th patient signal read!')
-                        signal = pd.DataFrame(signal)
-                        patientData = pd.concat([patientData,signal],axis=0,ignore_index=True)
+
+                        # signal = pd.DataFrame(signal)
+                        # patientData = pd.concat([patientData,signal],axis=0,ignore_index=True)
+                        if patientCounter%10 == 0:
+                            print(f'patient: {patientCounter}')
+                        self.readSignals.append(id)
+                        patientData.append(signal)
                         patientCounter +=1
-        normalData = normalData.T
-        patientData = patientData.T
-        return [normalData,patientData]
+        try:
+            normalData = pd.concat(normalData,axis=0,ignore_index=True)
+            patientData = pd.concat(patientData,axis=0,ignore_index=True)
+            normalData = normalData.T
+            patientData = patientData.T
+            return [normalData,patientData]
+        except:
+            return None
     def prepareData(self,Data,targets,inputNames):
         mainData = []
-        t = targets[0]
-        Targets = np.expand_dims([t],axis = -1)
+        tar = []
         for n,name in enumerate(inputNames):
-            data = np.squeeze(Data[0][n])
-            data = np.expand_dims([data],axis = 0)
-            print('###################')
-            print(f'data shape: {data.shape}')
-            print(f'reading {n}th signal')
-            for i,s in enumerate(Data[1:]):
+            data = [] 
+            for i,s in enumerate(Data):
                 s = s[n]
                 index = self.len*self.freq[name]
-                if len(s)>index:
-                    s = s[:index]    
-                else :
-                    s += [0]*(index-len(s))
+                if len(s)<index:
+                    #s = s[:index]    
+                #else :
+                    continue
+
+                    # s += [0]*(index-len(s))
                 tmp = np.expand_dims([s],axis = 0)   
-                data = np.concatenate([data,tmp],axis=1)
-                if n == 0: 
+                data.append(tmp)
+                if n == 0 : 
                     t = targets[i]
-                    t = np.expand_dims([t],axis = -1)    
-                    Targets = np.concatenate([Targets,t],axis=0)
-                if i%500 ==0 and not (i == 0) :
-                    print(i)
+                    t = np.expand_dims([t],axis = -1) 
+                    tar.append(t)
+            Targets = np.concatenate(tar,axis=0)
+            data = np.concatenate(data,axis=1)
             mainData.append(data)
         return [mainData,Targets]
     def preprocessing(self,series,targets,split = True):
@@ -203,37 +244,37 @@ class utils:
         for j in range(len(Data)):
             array = []
             for i in names:   
-                tmpArray = np.asarray(Data[i][j])
-                shape = tmpArray.shape
-                tmpArray = np.reshape(tmpArray,[shape[1]*shape[0]])
-                tmpArray = np.asarray(tmpArray).astype('float32').tolist() 
+                # tmpArray = np.asarray(Data[i][j])
+                # shape = tmpArray.shape
+                shape = np.shape(Data[i][j])
+                tmpArray = np.reshape(Data[i][j],[shape[1]*shape[0]])
+                # tmpArray = np.asarray(tmpArray).astype('float32').tolist() 
+                # tmpArray = tmpArray.tolist()
                 array.append(tmpArray)
             data.append(array)
         return data
-    def dataGenerator(self,inputNames):
-        while 1:    
-            self.readCsv()
-            [normalData,patientData] = self.globForOnEdfs(normalLen=3,patientLen=3)
-            if len(normalData) <= 15:
-                normalData = normalData.T
-                patientData = patientData.T
-            targets = [0]*(len(normalData))+[1]*(len(patientData))
-            print(len(targets))
-            Data = pd.concat([normalData,patientData],axis=0,ignore_index=True) 
-            Data = Data.dropna()
-            Data = Data.reset_index()
-            Data = Data.drop('index',axis = 1)
-            Data.columns = inputNames
-            print(Data)
-            del(normalData,patientData)
-            print(len(targets))
-            Data = self.squeeze(Data,inputNames)
-            trainData,trainTargets = self.preprocessing(series=Data,targets=targets,split = False)
-            [trainData,trainTargets] = self.prepareData(Data = trainData,targets = trainTargets,inputNames = inputNames)
-            del(Data,targets)
-            Targets = np.expand_dims(trainTargets,axis=-1)
-            Data = []
-            for i,d in enumerate(trainData):
-                d = d.reshape([np.shape(d)[1],1,self.len*self.freq[inputNames[i]]])
-                Data.append(d)
-            yield Data, Targets
+    def dataGenerator(self,inputNames,normalLen,patientLen):
+   
+        self.readCsv()
+        [normalData,patientData] = self.globForOnEdfs(normalLen=normalLen,patientLen=patientLen)
+        print('preparing data...')
+        if len(normalData) <= 15:
+            normalData = normalData.T
+            patientData = patientData.T
+        trainTargets = [0]*(len(normalData))+[1]*(len(patientData))
+        Data = pd.concat([normalData,patientData],axis=0,ignore_index=True) 
+        Data = Data.dropna()
+        Data = Data.reset_index()
+        Data = Data.drop('index',axis = 1)
+        Data.columns = inputNames
+        del(normalData,patientData)
+        trainData = self.squeeze(Data,inputNames)
+        # trainData,trainTargets = self.preprocessing(series=trainData,targets=trainTargets,split = False)
+        [trainData,trainTargets] = self.prepareData(Data = trainData,targets = trainTargets,inputNames = inputNames)
+        del(Data)
+        Targets = np.expand_dims(trainTargets,axis=-1)
+        Data = []
+        for i,d in enumerate(trainData):
+            d = d.reshape([np.shape(d)[1],1,self.len*self.freq[inputNames[i]]])
+            Data.append(d)
+        return Data, Targets
