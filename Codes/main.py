@@ -70,8 +70,3 @@ model.compile()
 testId = [200077,200116,200081,200082,200093,200114,200115,200117] # util.readSignals
 model.trainGenerator(util=util,inputNames=inputNames,valData=[dataTest,targetsTest],
                      saveAddr = 'C:\\Users\\u23\\Documents\\project\\Model2\\')
-
-
-# hist = model.trainModel(signal=Data,targets=Targets,validationData=dataTest,validationTargets=targetsTest,batchSize=128,epochs=5)
-# model.plotHist(hist)
-# model.net.save('/home/ali/Documents/projects/SHHS/Model/modelWithECG30Sec.h5')

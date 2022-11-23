@@ -66,15 +66,7 @@ class utils:
                 name = name.replace(c,'')
                 name = name.lower()
             names[i] = name
-        for name in self.targetSignals: # range(len(names)):
-            # signal = list(file.readSignal(i))
-            # name = headers[:]['label']
-            # i = np.where()
-            # for c in self.namesFilter:
-            #     name = name.replace(c,'')
-            # name = name.lower()
-            # if not(name in self.targetSignals):
-            #     continue
+        for name in self.targetSignals:
             if not(name in names):
                 return None
             i = names.index(name)
@@ -90,7 +82,7 @@ class utils:
         if save:
             table.to_csv(self.path2save+'\\'+str(id)+'.csv')                                 # saving every signal as csv file 
         file.close()
-        if returnOneSignal: # and len(table.columns) == len(self.targetSignals):                     
+        if returnOneSignal:                   
             return table
         elif (not returnOneSignal) and len(List) == len(self.targetSignals):
             return List
@@ -100,8 +92,6 @@ class utils:
         import glob
         normalLen -=1
         patientLen -=1
-        # normalData = pd.DataFrame(columns=self.targetSignals)
-        # patientData = pd.DataFrame(columns=self.targetSignals)
         normalData = []
         patientData = []
         normalCounter = 0
@@ -134,8 +124,6 @@ class utils:
                                 continue
                         except:
                             pass
-                        # signal = pd.DataFrame(signal)
-                        # normalData = pd.concat([normalData,signal],axis=0,ignore_index=True)
                         if normalCounter%10 == 0:
                             print(f'normal: {normalCounter}')
                         self.readSignals.append(id)
@@ -144,8 +132,6 @@ class utils:
                 elif id in list(self.validPatientSignalsName['id']):
                     if  (patientLen == patientCounter):
                         if (normalLen == normalCounter) :
-                            # normalData.columns = self.targetSignals
-                            # patientData.columns = self.targetSignals
                             normalData = pd.concat(normalData,axis=0,ignore_index=True)
                             patientData = pd.concat(patientData,axis=0,ignore_index=True)
                             return [normalData,patientData] 
@@ -157,14 +143,11 @@ class utils:
                         try:
                             if signal == None:
                                 if not (id in self.invalidSignals):
-                                       self.invalidSignals.append(id)
-                                       
+                                       self.invalidSignals.append(id)                                       
                                 continue
                         except:
                             pass
 
-                        # signal = pd.DataFrame(signal)
-                        # patientData = pd.concat([patientData,signal],axis=0,ignore_index=True)
                         if patientCounter%10 == 0:
                             print(f'patient: {patientCounter}')
                         self.readSignals.append(id)
@@ -187,11 +170,7 @@ class utils:
                 s = s[n]
                 index = self.len*self.freq[name]
                 if len(s)<index:
-                    #s = s[:index]    
-                #else :
                     continue
-
-                    # s += [0]*(index-len(s))
                 tmp = np.expand_dims([s],axis = 0)   
                 data.append(tmp)
                 if n == 0 : 
@@ -244,12 +223,8 @@ class utils:
         for j in range(len(Data)):
             array = []
             for i in names:   
-                # tmpArray = np.asarray(Data[i][j])
-                # shape = tmpArray.shape
                 shape = np.shape(Data[i][j])
                 tmpArray = np.reshape(Data[i][j],[shape[1]*shape[0]])
-                # tmpArray = np.asarray(tmpArray).astype('float32').tolist() 
-                # tmpArray = tmpArray.tolist()
                 array.append(tmpArray)
             data.append(array)
         return data
