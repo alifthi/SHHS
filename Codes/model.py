@@ -34,112 +34,104 @@ class model:
         self.inputNames = inputNames
         self.freq = {'sao2': 1, 'hr': 1, 'eogl': 50 ,'eogr': 50, 'eeg': 125,'eegsec': 125,'ecg': 125,
                     'emg': 125, 'thorres': 10, 'abdores': 10, 'position': 1, 'light': 1, 'newair': 10}
-        self.len = 30 # 32010
-        self.net = self.buildModel()
-        
+        self.len = 120 # 32010
+        self.net = None # self.buildModel()
+        self.dataFlag = True
+        self.trainData = []
+        self.trainTargets = []
+        self.testData = []
+        self.testTargets = []
     def buildModel(self):
         # define inputs of model
         inputs = {}                 # a dictionar that contain all inputs
         outputs = {}                # A dictionary that contain all outputs
         # define some hyper parametere
         d = 3
-        kernelSize = 5
+        kernelSize = 3
         poolingSize = 2
-        strides2D = 1
+        strides2D = 2
         poolingSize2D = 2
         ReLURate = 0.01
-        dropoutRate = 0.01
+        dropoutRate = 0.2
         for name in self.inputNames:
             # define first networks of every inputs of model
             print(name)
             r = self.freq[name] 
 
-            inputs[name+'Net'] = ksl.Input(shape = [None,self.len*r])
+            inputs[name+'Net'] = ksl.Input(shape = [self.len*r,1])
 
-            x = ksl.Conv1D(8,kernel_size = kernelSize,padding = 'same')(inputs[name+'Net'])
+            x = ksl.Conv1D(16,kernel_size = kernelSize,strides = 2,activation = 'relu',padding = 'same')(inputs[name+'Net'])
             x = ksl.MaxPooling1D(poolingSize,padding = 'same')(x)
             x = ksl.BatchNormalization()(x)
             
-            x = ksl.Conv1D(16,kernel_size = kernelSize,padding = 'same')(x)
-            x = ksl.MaxPooling1D(poolingSize,padding = 'same')(x)
-            x = ksl.BatchNormalization()(x)
-            
-            x = ksl.Conv1D(32,kernel_size = kernelSize,padding = 'same')(x)
+            x = ksl.Conv1D(8,kernel_size = kernelSize,strides = 2,activation = 'relu',padding = 'same')(x)
             x = ksl.MaxPooling1D(poolingSize,padding = 'same')(x)
             x = ksl.BatchNormalization()(x)
 
-            
             outputs[name] = x 
         # define shared model
-        concatLayer = ksl.concatenate(list(outputs.values()),axis = -1)
+        concatLayer = ksl.concatenate(list(outputs.values()),axis = 1)
 
-        x = ksl.Conv1D(64,kernel_size = 3,strides = strides2D,padding = 'same')(concatLayer)
+        x = ksl.Conv1D(64,kernel_size = 3,strides = strides2D,activation = 'relu',padding = 'same')(concatLayer)
         x = ksl.MaxPooling1D(poolingSize2D,padding = 'same')(x)
         x = ksl.BatchNormalization()(x)
 
-        # x = ksl.Conv1D(64,kernel_size = 3,strides = strides2D,padding = 'same')(concatLayer)
-        # x = ksl.MaxPooling1D(poolingSize2D,padding = 'same')(x)
-        # x = ksl.BatchNormalization()(x)
-
-        x = ksl.Conv1D(32,kernel_size = 3,strides = strides2D,padding = 'same')(x)
-        x = ksl.MaxPooling1D(poolingSize2D,padding = 'same')(x)
-        x = ksl.BatchNormalization()(x)
-
-        x = ksl.Conv1D(16,kernel_size = 3,strides = strides2D,padding = 'same')(x)
+        x = ksl.Conv1D(32,kernel_size = 3,strides = strides2D,activation = 'relu',padding = 'same')(x)
         x = ksl.MaxPooling1D(poolingSize2D,padding = 'same')(x)
         x = ksl.BatchNormalization()(x)
         
-        # x = ksl.Dense(512)(x)
-        # x = ksl.LeakyReLU(ReLURate)(x)
-        # x = ksl.Dropout(0.2)(x)
-
-        # x = ksl.Dense(256)(x)
-        # x = ksl.LeakyReLU(ReLURate)(x)
-        # x = ksl.Dropout(0.1)(x)
-
-        x = ksl.Dense(128)(x)
-        x = ksl.LeakyReLU(ReLURate)(x)
-        x = ksl.Dropout(0.1)(x)
-
+        x = ksl.Flatten()(x)
         x = ksl.Dense(64)(x)
         x = ksl.LeakyReLU(ReLURate)(x)
-        x = ksl.Dropout(0.1)(x)
+        x = ksl.Dropout(dropoutRate)(x)
 
         x = ksl.Dense(32)(x)
         x = ksl.LeakyReLU(ReLURate)(x)
+        x = ksl.Dropout(dropoutRate)(x)
         
         output = ksl.Dense(1,activation = 'sigmoid')(x)
         return tf.keras.Model(inputs = list(inputs.values()),outputs = output)
     def transformer(self):
         pass
-    def compile(self):
-        opt = optim.SGD(lr=0.01, decay=1e-6, momentum=0.9)  # we can use lr schedual
+    def compile(self,saveAddr):
+        opt = optim.SGD(lr=0.1)  # we can use lr schedual
         Loss = loss.BinaryCrossentropy()
         self.net.compile(optimizer = opt,loss = 'binary_crossentropy',metrics = ['accuracy'])
         self.net.summary()
+        # tf.keras.utils.plot_model(self.net,to_file = saveAddr+'model.png')
         
     def trainModel(self,signal=None,targets=None,validationData=None,validationTargets=None,batchSize = 64,epochs = 1):   
         hist = self.net.fit(signal,targets,epochs = epochs,batch_size = batchSize,
                     validation_data=[validationData,validationTargets])
         return hist
-    def trainGenerator(self,util,inputNames,saveAddr,valData):
-        normalLen = 30
-        patientLen = 30
+    def trainGenerator(self,util,saveAddr):
+        normalLen = 100
+        patientLen = 100
         numFiles = 830
         epochs = 10
-        steps = int(numFiles/(normalLen+patientLen))
+        steps = int(numFiles/patientLen)
         for i in range(epochs):
             print(f'epoch {i}:\n')
-            util.readSignals = [200077,200116,200081,200082,200093,200114,200115,200117]
+
             for j in range(steps):
-                #try:
-                trainD,trainT = util.dataGenerator(inputNames,normalLen = normalLen,patientLen = patientLen)
+                if not self.dataFlag and j == len(self.trainData):
+                    break
+                if self.dataFlag:
+                    try:
+                        trainD,trainT,testD,testT = util.dataGenerator(normalLen = normalLen,
+                                                                     patientLen = patientLen)
+                        self.trainData.append(trainD)
+                        self.testData.append(testD)
+                        self.testTargets.append(testT)
+                        self.trainTargets.append(trainT)
+                    except:
+                        self.dataFlag = False
+                        break
+
+                     
                 print(f'step: {j}')
-                #except:
-                 #   break
-                hist = self.net.fit(trainD,trainT,epochs=5,batch_size=128,validation_data=valData)
-                del(trainD,trainT)
-                with open(f"C:\\Users\\u23\\Documents\\project\\History2\\historys{j}e{i+2}.txt", 'w') as f: 
+                hist = self.net.fit(self.trainData[j],self.trainTargets[j],epochs=15,batch_size=128,validation_data=[self.testData[j],self.testTargets[j]])
+                with open(f"~/Documents/project/History/historys{j}e{i}.txt", 'w') as f: 
                     for key, value in hist.history.items(): 
                         f.write(f'epochs {i} :\n Key:  {key}  Value:  {value}')
                     f.write('\n####################################################')

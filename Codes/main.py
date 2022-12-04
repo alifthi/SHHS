@@ -21,52 +21,31 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 '''
-
-from model import model 
+from model import model as Model
 from utils import utils
 import numpy as np
 import pandas as pd
-idPath = 'C:\\Users\\u23\\Documents\\project\\SHHS\\Data\\SHHS1.xlsx'
-signalQualIdPath = 'C:\\Users\\u23\\Documents\\project\\SHHS\Data\\signal quality.xlsx'
-signalQualValuePath = 'C:\\Users\\u23\\Documents\\project\\SHHS\\Data\\datasets\\1- shhs1-dataset-0.13.0.csv'
+idPath = '~/Documents/projects/SHHS/Data/SHHS1.xlsx'
+signalQualIdPath = '~/Documents/projects/SHHS/Data/signal quality.xlsx'
+signalQualValuePath = '~/Documents/projects/SHHS/Data/datasets/1- shhs1-dataset-0.13.0.csv'
 path2save = '~/Documents/Projects/SHHS/Data/signalsAsCSV'
-signalDir = ['G:\\projects\\shhs\\shhs1\\edf']
+signalDir = ['~/Documents/projects/SHHS/Data/part2']
+outlayerPath = '~/Documents/projects/SHHS/Data/datasets/outlierCheck.xlsx'
+
 allInputNames = ['sao2','hr','eeg','eegsec','ecg','emg','eogl',
                         'eogr','thorres','abdores','newair','light','position']
 freq = {'sao2': 1, 'hr': 1, 'eogl': 50 ,'eogr': 50, 'eeg': 125,'eegsec': 125,'ecg': 125,
                     'emg': 125, 'thorres': 10, 'abdores': 10, 'position': 1, 'light': 1, 'newair': 10}
-inputNames = list(freq.keys()) # ['ecg']
+inputNames = ['eogl','eogr','eeg','eegsec','ecg']
 util = utils(signalDir=signalDir,targetSignals=inputNames,
             signalQualIdPath=signalQualIdPath,signalQualValuePath=signalQualValuePath,
-            idPath=idPath,path2save=path2save)
+            idPath=idPath,path2save=path2save,outlayerPath=outlayerPath)
 
-util.readCsv()
-[normalData,patientData] = util.globForOnEdfs(normalLen=4,patientLen=4)
-valTargets = [0]*(len(normalData))+[1]*(len(patientData))
-len(valTargets)
-Data = pd.concat([normalData,patientData],axis=0,ignore_index=True) 
-Data = Data.dropna()
-Data = Data.reset_index()
-Data = Data.drop('index',axis = 1)
-Data.columns = inputNames
-print(Data.shape)
-del(normalData,patientData)
-print('squeeze')
-valData = util.squeeze(Data,inputNames)
-# valData,valTargets = util.preprocessing(series=valData,targets=targets,split = False)
-print('preparing')
-[valData,valTargets] = util.prepareData(Data = valData,targets = valTargets,inputNames = inputNames)
-print('expand')
-targetsTest = np.expand_dims(valTargets,axis=-1)
-dataTest = []
-for i,d in enumerate(valData):
-    d = d.reshape([np.shape(d)[1],1,util.len*util.freq[inputNames[i]]])
-    dataTest.append(d)
-del(valData,valTargets,d,Data)
-print(np.shape(dataTest[0]))
-model = model(inputNames=inputNames)
-# model.loadModel(addr = r'C:\Users\u23\Documents\project\Model2\model_1_1.h5')
-model.compile()
-testId = [200077,200116,200081,200082,200093,200114,200115,200117] # util.readSignals
-model.trainGenerator(util=util,inputNames=inputNames,valData=[dataTest,targetsTest],
-                     saveAddr = 'C:\\Users\\u23\\Documents\\project\\Model2\\')
+model = Model(inputNames=inputNames)
+
+model.net = model.buildModel()
+
+saveModelAddr = '~/u23/Documents/project/Model/'
+model.compile(saveAddr=saveModelAddr)
+
+model.trainGenerator(util=util,saveAddr = saveModelAddr)
