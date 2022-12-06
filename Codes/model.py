@@ -37,6 +37,7 @@ class model:
         self.len = 120 # 32010
         self.net = None # self.buildModel()
         self.dataFlag = True
+        self.clbk = None
         self.trainData = []
         self.trainTargets = []
         self.testData = []
@@ -80,12 +81,14 @@ class model:
         x = ksl.MaxPooling1D(poolingSize2D,padding = 'same')(x)
         x = ksl.BatchNormalization()(x)
         
+
         x = ksl.Flatten()(x)
-        x = ksl.Dense(64)(x)
+
+        x = ksl.Dense(32)(x)
         x = ksl.LeakyReLU(ReLURate)(x)
         x = ksl.Dropout(dropoutRate)(x)
 
-        x = ksl.Dense(32)(x)
+        x = ksl.Dense(16)(x)
         x = ksl.LeakyReLU(ReLURate)(x)
         x = ksl.Dropout(dropoutRate)(x)
         
@@ -98,13 +101,12 @@ class model:
         Loss = loss.BinaryCrossentropy()
         self.net.compile(optimizer = opt,loss = 'binary_crossentropy',metrics = ['accuracy'])
         self.net.summary()
-        # tf.keras.utils.plot_model(self.net,to_file = saveAddr+'model.png')
         
     def trainModel(self,signal=None,targets=None,validationData=None,validationTargets=None,batchSize = 64,epochs = 1):   
         hist = self.net.fit(signal,targets,epochs = epochs,batch_size = batchSize,
-                    validation_data=[validationData,validationTargets])
+                    validation_data=[validationData,validationTargets],callbacks = self.clbk)
         return hist
-    def trainGenerator(self,util,saveAddr):
+    def trainGenerator(self,util,saveAddr,split = False):
         normalLen = 100
         patientLen = 100
         numFiles = 830
@@ -118,11 +120,15 @@ class model:
                     break
                 if self.dataFlag:
                     try:
-                        trainD,trainT,testD,testT = util.dataGenerator(normalLen = normalLen,
-                                                                     patientLen = patientLen)
+                        if split:
+                            trainD,trainT,testD,testT = util.dataGenerator(normalLen = normalLen,
+                                                                       patientLen = patientLen,split = True)
+                            self.testData.append(testD)
+                            self.testTargets.append(testT)
+                        else:
+                            trainD,trainT,testD,testT = util.dataGenerator(normalLen = normalLen,
+                                                                         patientLen = patientLen)
                         self.trainData.append(trainD)
-                        self.testData.append(testD)
-                        self.testTargets.append(testT)
                         self.trainTargets.append(trainT)
                     except:
                         self.dataFlag = False
@@ -130,27 +136,42 @@ class model:
 
                      
                 print(f'step: {j}')
-                hist = self.net.fit(self.trainData[j],self.trainTargets[j],epochs=15,batch_size=128,validation_data=[self.testData[j],self.testTargets[j]])
-                with open(f"~/Documents/project/History/historys{j}e{i}.txt", 'w') as f: 
+                self.callBacks(epoch = 'epoch_' + str(i) + '_step_' +str(j))
+                hist = self.net.fit(self.trainData[j],self.trainTargets[j],epochs=15,batch_size=128,
+                                    validation_data=[self.testData,self.testTargets],callbacks = self.clbk)
+                self.callBacks(epoch = 'epoch_' + str(i) + '_step_' +str(j))
+                self.plotHist(hist,saveAddr = r'~/Documents/projects/SHHS/Plots',
+                              i ='_epoch_' + str(i) + '_step_' +str(j) )
+                with open(f"~/Documents/project/History/historys{j}e{i}.txt") as f: 
                     for key, value in hist.history.items(): 
                         f.write(f'epochs {i} :\n Key:  {key}  Value:  {value}')
                     f.write('\n####################################################')
             self.net.save(saveAddr+'model_' + str(i) + '.h5')
     @staticmethod
-    def plotHist(Hist):
+    def plotHist(Hist,saveAddr,i = ''):
         from matplotlib import pyplot as plt
         plt.plot(Hist.history['accuracy'])
         plt.plot(Hist.history['val_accuracy'])
         plt.title('model accuracy')
-        plt.show()
+        plt.savefig(saveAddr +'accuracy_'+i+'.png')
         plt.plot(Hist.history['loss'])
         plt.plot(Hist.history['val_loss'])
         plt.title('model loss')
-        plt.show()
-    def callBacks(self):
-        pass
-    def test(self):
-        pass
+        plt.savefig(saveAddr + 'loss_'+i+'.png')
+    def callBacks(self,epoch):
+        self.clbk = []
+        clbk = tf.keras.callbacks.ModelCheckpoint(filepath = r'~/Documents/projects/SHHS/callBacks/modelCheckpoint',
+                                                        monitor = 'val_accuracy',
+                                                        mode='max',
+                                                        save_best_only=True)
+        self.clbk.append(clbk)
+        
+        clbk = tf.keras.callbacks.TensorBoard(log_dir = r'~/Documents/projects/SHHS/callBacks/tensorboard'+'/'+ epoch +'_log')
+        self.clbk.append(clbk)
+        
+        clbk = tf.keras.callbacks.EarlyStopping()
+        self.clbk.append(clbk)
+        
     def loadModel(self,addr):
         self.net = tf.keras.models.load_model(addr)
         
