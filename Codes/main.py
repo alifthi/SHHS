@@ -31,7 +31,7 @@ signalQualValuePath = '~/Documents/projects/SHHS/Data/datasets/1- shhs1-dataset-
 path2save = '~/Documents/Projects/SHHS/Data/signalsAsCSV'
 signalDir = ['~/Documents/projects/SHHS/Data/part2']
 outlayerPath = '~/Documents/projects/SHHS/Data/datasets/outlierCheck.xlsx'
-
+featurePath = 'C:\\Users\\Legion\\Documents\\projects\\ShhsPhase22\\Data\\'
 allInputNames = ['sao2','hr','eeg','eegsec','ecg','emg','eogl',
                         'eogr','thorres','abdores','newair','light','position']
 freq = {'sao2': 1, 'hr': 1, 'eogl': 50 ,'eogr': 50, 'eeg': 125,'eegsec': 125,'ecg': 125,
@@ -39,7 +39,7 @@ freq = {'sao2': 1, 'hr': 1, 'eogl': 50 ,'eogr': 50, 'eeg': 125,'eegsec': 125,'ec
 inputNames = ['eogl','eogr','eeg','eegsec','ecg']
 util = utils(signalDir=signalDir,targetSignals=inputNames,
             signalQualIdPath=signalQualIdPath,signalQualValuePath=signalQualValuePath,
-            idPath=idPath,path2save=path2save,outlayerPath=outlayerPath)
+            idPath=idPath,path2save=path2save,outlayerPath=outlayerPath,featurePath = featurePath)
 
 model = Model(inputNames=inputNames)
 

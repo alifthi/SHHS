@@ -86,7 +86,7 @@ class model:
 
         x = ksl.Flatten()(x)
         
-        featureInput = ksl.Input(shape = [None,self.numFeatures])
+        featureInput = ksl.Input(shape = [self.numFeatures])
         y = ksl.Dense(128,ativation = 'relu')(featureInput)
         y = ksl.LeakyRelu(featureReluRate)(y)
         y = ksl.Dropout(featureDropoutRate)(y)

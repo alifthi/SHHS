@@ -26,7 +26,8 @@ import pandas as pd
 import numpy as np
 class utils:
     def __init__(self,signalDir,idPath,signalQualIdPath,
-                signalQualValuePath,path2save,targetSignals,outlayerPath):
+                signalQualValuePath,path2save,targetSignals,
+                outlayerPath,featurePath):
         
         self.outlayerPath = outlayerPath
         self.signalQualIdPath = signalQualIdPath                # saves the path of signal quality id file
@@ -35,12 +36,16 @@ class utils:
         self.idPath = idPath                                    # location that target ids saved
         self.path2save = path2save                              # location to save signal that converted to csv
         self.targetSignals = targetSignals
+        self.featurePath = featurePath
         self.freq = {'sao2': 1, 'hr': 1, 'eogl': 50 ,'eogr': 50, 'eeg': 125,'eegsec': 125,'ecg': 125,
                     'emg': 125, 'thorres': 10, 'abdores': 10, 'position': 1, 'light': 1, 'newair': 10}
         self.len = 120 # 32010
         self.namesFilter = '.,_ ()'
         self.readSignals  = []                  #  this list contain data that read
         self.invalidSignals = []
+    def readFeatures(self,id):
+
+        pass
     def readAsDF(self,signalPath,save = False,id=None,returnOneSignal = False):         # it reads signals as a CSV file
         file = edf.EdfReader(signalPath)                    
         headers = file.getSignalHeaders() 
@@ -98,6 +103,8 @@ class utils:
         patientLen -=1
         normalData = []
         patientData = []
+        normalFeatures = []
+        patientFeatures = []
         normalCounter = 0
         patientCounter = 0
         for Dir in self.signalDir:
@@ -114,10 +121,11 @@ class utils:
                             if (patientLen == patientCounter):
                                 normalData = pd.concat(normalData,axis=0,ignore_index=True)
                                 patientData = pd.concat(patientData,axis=0,ignore_index=True)
-                                return [normalData,patientData]
+                                return [normalData,patientData,patientFeatures,normalFeatures]
                             else:
                                 continue
                         try :
+                            
                             signal = self.readAsDF(signalPath=path,id = id,returnOneSignal=True) 
                         except:
                             continue
@@ -131,6 +139,8 @@ class utils:
                         if normalCounter%10 == 0:
                             print(f'normal: {normalCounter}')
                         self.readSignals.append(id)
+                        feature = self.normalFeatures.loc[self.normalFeatures['nsrrid'] == id].to_numpy()
+                        normalFeatures.append(feature)
                         normalData.append(signal)
                         normalCounter +=1 
                 elif id in list(self.validPatientSignalsName['id']):
@@ -138,7 +148,7 @@ class utils:
                         if (normalLen == normalCounter) :
                             normalData = pd.concat(normalData,axis=0,ignore_index=True)
                             patientData = pd.concat(patientData,axis=0,ignore_index=True)
-                            return [normalData,patientData] 
+                            return [normalData,patientData,patientFeatures,normalFeatures]
                         else :
                             continue
                     index = self.validPatientSignalsName.loc[self.validPatientSignalsName['id']==id].index[0]
@@ -155,6 +165,8 @@ class utils:
                         if patientCounter%10 == 0:
                             print(f'patient: {patientCounter}')
                         self.readSignals.append(id)
+                        feature = self.patientFeatures.loc[self.patientFeatures['nsrrid'] == id].to_numpy()
+                        patientFeatures.append(feature)
                         patientData.append(signal)
                         patientCounter +=1
         try:
@@ -162,7 +174,7 @@ class utils:
             patientData = pd.concat(patientData,axis=0,ignore_index=True)
             normalData = normalData.T
             patientData = patientData.T
-            return [normalData,patientData]
+            return [normalData,patientData,patientFeatures,normalFeatures]
         except:
             return None
     def prepareData(self,Data,targets):
@@ -227,6 +239,8 @@ class utils:
                                                           signalQualId=self.signalQualId,
                                                           outlayerValue = outlayerValue,
                                                           outlayerID = self.outlayerID)
+        self.normalFeatures = pd.read_excel(self.featurePath+'normal.xlsx')
+        self.patientFeatures = pd.read_excel(self.featurePath+'patient.xlsx')
     @staticmethod
     def isSignalValid(Len,list,qualList,thereshQual,signalQualId,outlayerValue,outlayerID):      # check that witch signals is valid to use in a EDF file
         goodSignals = pd.DataFrame(columns=['id','Signals'])    
