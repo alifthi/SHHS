@@ -30,22 +30,19 @@ class utils:
                 outlayerPath,featurePath):
         
         self.outlayerPath = outlayerPath
+        self.featurePath = featurePath
         self.signalQualIdPath = signalQualIdPath                # saves the path of signal quality id file
         self.signalQualValuePath = signalQualValuePath          # saves the path of signal quality value file
         self.signalDir = signalDir                              # path of signals
         self.idPath = idPath                                    # location that target ids saved
         self.path2save = path2save                              # location to save signal that converted to csv
         self.targetSignals = targetSignals
-        self.featurePath = featurePath
         self.freq = {'sao2': 1, 'hr': 1, 'eogl': 50 ,'eogr': 50, 'eeg': 125,'eegsec': 125,'ecg': 125,
                     'emg': 125, 'thorres': 10, 'abdores': 10, 'position': 1, 'light': 1, 'newair': 10}
-        self.len = 120 # 32010
+        self.len = 500 
         self.namesFilter = '.,_ ()'
         self.readSignals  = []                  #  this list contain data that read
         self.invalidSignals = []
-    def readFeatures(self,id):
-
-        pass
     def readAsDF(self,signalPath,save = False,id=None,returnOneSignal = False):         # it reads signals as a CSV file
         file = edf.EdfReader(signalPath)                    
         headers = file.getSignalHeaders() 
@@ -72,16 +69,15 @@ class utils:
                 name = name.replace(c,'')
                 name = name.lower()
             names[i] = name
-        for name in self.targetSignals: # range(len(names)):
+        for name in self.targetSignals:
 
             if not(name in names):
                 return None
             i = names.index(name)
             rate = int(headers[i]['sample_rate'])
             lowerRate = self.len
-            nHoure = 3
             signal = list(file.readSignal(i))
-            chunks = [signal[x:x+rate] for x in range(0, rate*nHoure*3600, rate)]                # this line of code will chunk the main signal in term of sampling frequency
+            chunks = [signal[x:x+rate] for x in range(0, rate*self.len, rate)]                # this line of code will chunk the main signal in term of sampling frequency
             lowerChunk = [chunks[x:x+lowerRate] for x in range(0, len(chunks), lowerRate)]
             if returnOneSignal:  
                 table[name] = lowerChunk
@@ -90,7 +86,7 @@ class utils:
         if save:
             table.to_csv(self.path2save+'\\'+str(id)+'.csv')                                 # saving every signal as csv file 
         file.close()
-        if returnOneSignal: # and len(table.columns) == len(self.targetSignals):                     
+        if returnOneSignal:                    
             return table
         elif (not returnOneSignal) and len(List) == len(self.targetSignals):
             return List
@@ -99,8 +95,6 @@ class utils:
         
     def globForOnEdfs(self,normalLen=10,patientLen=10):
         import glob
-        normalLen -=1
-        patientLen -=1
         normalData = []
         patientData = []
         normalFeatures = []
@@ -119,14 +113,19 @@ class utils:
                     if (len(self.validNormalSignalsName['Signals'][index]) >= len(self.signalQualId)-1):        # condition will be True, if every signal be valid
                         if(normalLen == normalCounter):
                             if (patientLen == patientCounter):
+                                normalFeatures = pd.concat(normalFeatures,axis=0,ignore_index=True)
+                                patientFeatures = pd.concat(patientFeatures,axis=0,ignore_index=True)
                                 normalData = pd.concat(normalData,axis=0,ignore_index=True)
                                 patientData = pd.concat(patientData,axis=0,ignore_index=True)
                                 return [normalData,patientData,patientFeatures,normalFeatures]
                             else:
                                 continue
                         try :
-                            
                             signal = self.readAsDF(signalPath=path,id = id,returnOneSignal=True) 
+                            feature = self.normalFeatures.loc[self.normalFeatures['nsrrid'] == id].reset_index()
+                            if feature.shape[0] == 0:
+                                self.invalidSignals.append(id)
+                                continue
                         except:
                             continue
                         try:
@@ -138,14 +137,17 @@ class utils:
                             pass
                         if normalCounter%10 == 0:
                             print(f'normal: {normalCounter}')
+
+
                         self.readSignals.append(id)
-                        feature = self.normalFeatures.loc[self.normalFeatures['nsrrid'] == id].to_numpy()
                         normalFeatures.append(feature)
                         normalData.append(signal)
                         normalCounter +=1 
                 elif id in list(self.validPatientSignalsName['id']):
                     if  (patientLen == patientCounter):
                         if (normalLen == normalCounter) :
+                            normalFeatures = pd.concat(normalFeatures,axis=0,ignore_index=True)
+                            patientFeatures = pd.concat(patientFeatures,axis=0,ignore_index=True)
                             normalData = pd.concat(normalData,axis=0,ignore_index=True)
                             patientData = pd.concat(patientData,axis=0,ignore_index=True)
                             return [normalData,patientData,patientFeatures,normalFeatures]
@@ -154,22 +156,27 @@ class utils:
                     index = self.validPatientSignalsName.loc[self.validPatientSignalsName['id']==id].index[0]
                     if (len(self.validPatientSignalsName['Signals'][index]) >= (len(self.signalQualId)-1)):
                         signal = self.readAsDF(signalPath=path,returnOneSignal=True)
+                        feature = self.patientFeatures.loc[self.patientFeatures['nsrrid'] == id].reset_index()
+                        if feature.shape[0] == 0:
+                            self.invalidSignals.append(id)
+                            continue                        
                         try:
                             if signal == None:
                                 if not (id in self.invalidSignals):
                                        self.invalidSignals.append(id)
-                                       
+                                    
                                 continue
                         except:
                             pass
                         if patientCounter%10 == 0:
                             print(f'patient: {patientCounter}')
                         self.readSignals.append(id)
-                        feature = self.patientFeatures.loc[self.patientFeatures['nsrrid'] == id].to_numpy()
                         patientFeatures.append(feature)
                         patientData.append(signal)
                         patientCounter +=1
         try:
+            normalFeatures = pd.concat(normalFeatures,axis=0,ignore_index=True)
+            patientFeatures = pd.concat(patientFeatures,axis=0,ignore_index=True)
             normalData = pd.concat(normalData,axis=0,ignore_index=True)
             patientData = pd.concat(patientData,axis=0,ignore_index=True)
             normalData = normalData.T
@@ -198,19 +205,18 @@ class utils:
             data = np.concatenate(data,axis=1)
             mainData.append(data)
         return [mainData,Targets]
-    def preprocessing(self,series,targets,addNoise = False,split = True):
+    def preprocessing(self,series,targets,features,addNoise = False,split = True):
+        from sklearn.model_selection import train_test_split
         for i in range(len(series)):
             for j in range(len(self.targetSignals)):
                 m = max(max(series[i][j]),1)
                 for z in range(len(series[i][j])):
                     series[i][j][z] /= m
         if split:
-            from sklearn.model_selection import train_test_split
             trainSeries,testSetries,trainTargets,testTarget = train_test_split(series,targets,test_size = 0.1)
-            if addNoise:            
-                trainSeries = trainSeries + np.random.normal(0,1,np.shape(trainSeries))
             return [trainSeries,testSetries,trainTargets,testTarget]
-        return [series,targets]
+        series,_,features,_,targets,_ = train_test_split(series,features,targets,test_size = 0.00001)
+        return [series,features,targets]
     def readCsv(self):                                          # read needed CSV files
         patient = pd.read_excel(self.idPath,sheet_name='Patient')
         absolutelyNormal = pd.read_excel(self.idPath,sheet_name='Absolutely Normal')
@@ -239,7 +245,7 @@ class utils:
                                                           signalQualId=self.signalQualId,
                                                           outlayerValue = outlayerValue,
                                                           outlayerID = self.outlayerID)
-        self.normalFeatures = pd.read_excel(self.featurePath+'normal.xlsx')
+        self.normalFeatures = pd.read_excel(self.featurePath+'absNormal.xlsx')
         self.patientFeatures = pd.read_excel(self.featurePath+'patient.xlsx')
     @staticmethod
     def isSignalValid(Len,list,qualList,thereshQual,signalQualId,outlayerValue,outlayerID):      # check that witch signals is valid to use in a EDF file
@@ -262,28 +268,60 @@ class utils:
             array = []
             for i in self.targetSignals :   
                 shape = np.shape(Data[i][j])
-                tmpArray = np.reshape(Data[i][j],[shape[1]*shape[0],1])
+                tmpArray = np.reshape(Data[i][j],[shape[1]*shape[0]])
+                tmpArray=np.expand_dims(tmpArray,axis = -1)
                 array.append(tmpArray)
             data.append(array)
         return data
-    def dataGenerator(self,normalLen,patientLen):
+    def dataGenerator(self,normalLen,patientLen,split = False):
         
         self.readCsv()
-        [normalData,patientData] = self.globForOnEdfs(normalLen=normalLen,patientLen=patientLen)
+        [normalData,patientData,patientFeature,normalFeature] = self.globForOnEdfs(normalLen=normalLen,patientLen=patientLen)
         print('preparing data...')
-        if len(normalData) <= 15:
-            normalData = normalData.T
-            patientData = patientData.T
+
+            
+        patientFeature = patientFeature.drop('index',axis =1 )
+        normalFeature = normalFeature.drop('index',axis =1 )
+        
         trainTargets = [0]*(len(normalData))+[1]*(len(patientData))
+        featureData = pd.concat([normalFeature,patientFeature],axis = 0,ignore_index = True)
+        featureData = featureData.dropna()
+        featureData = featureData.reset_index()
+        featureData = featureData.drop(['index','nsrrid'],axis =1 ).to_numpy()
+
         Data = pd.concat([normalData,patientData],axis=0,ignore_index=True) 
         Data = Data.dropna()
         Data = Data.reset_index()
         Data = Data.drop('index',axis = 1)
+        print(Data.shape)
         Data.columns = self.targetSignals
         del(normalData,patientData)
         trainData = self.squeeze(Data)
         del(Data)
-        trainData,testData,trainTargets,testTargets = self.preprocessing(series=trainData,targets=trainTargets,split = True)
+        if split:
+            trainData,testData,trainTargets,testTargets = self.preprocessing(series=trainData,
+                                                                             targets=trainTargets,
+                                                                             addNoise=True,
+                                                                             split = False)
+            [trainData,trainTargets] = self.prepareData(Data = trainData,targets = trainTargets)
+            trainT = np.squeeze(trainTargets)
+            trainD = []
+            for i,d in enumerate(trainData):
+                d = d.reshape([np.shape(d)[1],self.len*self.freq[self.targetSignals[i]]])
+                trainD.append(d)
+            del(trainData,trainTargets)
+            [testData,trainTargets] = self.prepareData(Data = testData,targets = testTargets)
+            testT = np.squeeze(trainTargets)
+            testD = []
+            for i,d in enumerate(testData):
+                d = d.reshape([np.shape(d)[1],self.len*self.freq[self.targetSignals[i]]])
+                testD.append(d) 
+            return [trainD,trainT,testD,testT]
+
+        trainData,featureData,trainTargets = self.preprocessing(series=trainData,targets=trainTargets,
+                                                            features = featureData,
+                                                            addNoise = False,
+                                                            split = False)
         [trainData,trainTargets] = self.prepareData(Data = trainData,targets = trainTargets)
         trainT = np.squeeze(trainTargets)
         trainD = []
@@ -291,10 +329,5 @@ class utils:
             d = d.reshape([np.shape(d)[1],self.len*self.freq[self.targetSignals[i]]])
             trainD.append(d)
         del(trainData,trainTargets)
-        [testData,trainTargets] = self.prepareData(Data = testData,targets = testTargets)
-        testT = np.squeeze(trainTargets)
-        testD = []
-        for i,d in enumerate(testData):
-            d = d.reshape([np.shape(d)[1],self.len*self.freq[self.targetSignals[i]]])
-            testD.append(d) 
-        return [trainD,trainT,testD,testT]
+        trainD.append(featureData)
+        return [trainD,trainT]
