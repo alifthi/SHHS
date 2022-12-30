@@ -48,6 +48,8 @@ class model:
         outputs = {}                # A dictionary that contain all outputs
         # define some hyper parametere
         d = 3
+        featureReluRate = 0.1
+        featureDropoutRate = 0.1
         kernelSize = 3
         poolingSize = 2
         strides2D = 2
@@ -83,7 +85,17 @@ class model:
         
 
         x = ksl.Flatten()(x)
+        
+        featureInput = ksl.Input(shape = [None,self.numFeatures])
+        y = ksl.Dense(128,ativation = 'relu')(featureInput)
+        y = ksl.LeakyRelu(featureReluRate)(y)
+        y = ksl.Dropout(featureDropoutRate)(y)
 
+        y = ksl.Dense(256,ativation = 'relu')(featureInput)
+        y = ksl.LeakyRelu(featureReluRate)(y)
+        y = ksl.Dropout(featureDropoutRate)(y)
+
+        x = ksl.concatenate([x,y],axis = 0)
         x = ksl.Dense(32)(x)
         x = ksl.LeakyReLU(ReLURate)(x)
         x = ksl.Dropout(dropoutRate)(x)
